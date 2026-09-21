@@ -161,7 +161,30 @@ def compute_fpr_at_target_tpr(y_true, y_scores, target_tpr=0.99):
       {
         name: 'Expert', icon: '🏆',
         analogy: 'Mastering threat classification means defending your architectural choices under intense interrogation by security architects and ML directors.',
-        body: `<h3>🎤 Interview Scenario — Senior ML Security Engineer</h3>
+        body: `
+<div class="diagram-block"><pre class="arch-diagram">
+┌─────────────────────────────────────────────────────────────────┐
+│              MULTI-TIER THREAT CLASSIFIER ARCHITECTURE          │
+├─────────────────────────────────────────────────────────────────┤
+│  [User Prompt]                                                  │
+│       │                                                         │
+│       ▼                                                         │
+│  ┌────────────────────────────────────┐                         │
+│  │  TIER 1 — CPU Edge (&lt;0.5ms)       │  ← 92% traffic         │
+│  │  Regex Signatures + n-gram LM      │  BLOCK / ALLOW          │
+│  └──────────────────┬─────────────────┘                         │
+│                     │ 8% ambiguous band (0.35–0.75 score)       │
+│                     ▼                                           │
+│  ┌────────────────────────────────────┐                         │
+│  │  TIER 2 — GPU/ONNX RT (~4.2ms)   │  → Final VERDICT        │
+│  │  INT8 RoBERTa Bi-encoder (Triton) │                          │
+│  └────────────────────────────────────┘                         │
+│                                                                 │
+│  System P99: 4.82ms  │  FPR@99%TPR: 0.31%                     │
+│  ROC-AUC: 0.9984     │  GPU Cost: 4 vs 40 GPUs saved 💰        │
+└─────────────────────────────────────────────────────────────────┘
+</pre></div>
+<h3>🎤 Interview Scenario — Senior ML Security Engineer</h3>
 <strong>Interviewer:</strong> <em>"Walk me through designing a multi-stage LLM threat classifier for an enterprise customer-support platform handling 10,000 requests per second. How do you satisfy latency and accuracy SLAs?"</em><br/><br/>
 <strong>Strong Answer Framework:</strong><br/>
 1. <strong>Restate Constraints:</strong> P99 latency overhead must be &lt;15ms; throughput is 10k QPS; false positives directly disrupt customer support agents.<br/>
@@ -311,7 +334,26 @@ callbacks = [EarlyStoppingCallback(early_stopping_patience=3)]`,
       {
         name: 'Expert', icon: '🏆',
         analogy: 'Senior ML interviews test your ability to diagnose model decay and articulate defensive fine-tuning strategies under real production constraints.',
-        body: `<h3>🎤 Interview Scenario — Senior ML Engineer</h3>
+        body: `
+<div class="diagram-block"><pre class="arch-diagram">
+┌─────────────────────────────────────────────────────────────┐
+│           PEFT STRATEGIES — PRODUCTION TRADE-OFFS           │
+├──────────────┬──────────┬─────────┬───────────────────────┤
+│  Strategy    │  VRAM    │   F1    │  Best Use-Case        │
+├──────────────┼──────────┼─────────┼───────────────────────┤
+│  Full FT     │  48 GB   │  99.3%  │  Unlimited GPU budget │
+│  LoRA r=8    │  14 GB   │  99.1%  │  Production standard  │
+│  QLoRA NF4   │   4.2 GB │  98.9%  │  Single consumer GPU  │
+│  Prefix Tune │  11 GB   │  97.4%  │  Prompt-only tasks    │
+├──────────────┼──────────┼─────────┼───────────────────────┤
+│  Checkpoint  │  500 MB  │  3.8 MB │  1.1 MB               │
+└──────────────┴──────────┴─────────┴───────────────────────┘
+
+  CATASTROPHIC FORGETTING PREVENTION:
+  Frozen W_0 ──▶ LoRA ΔW = B·A  +  KL-Div Distillation Loss
+                              └──▶ 20% benign replay buffer
+</pre></div>
+<h3>🎤 Interview Scenario — Senior ML Engineer</h3>
 <strong>Interviewer:</strong> <em>"When you fine-tune a pre-trained transformer specifically on threat injection datasets, how do you prevent catastrophic forgetting of benign queries and maintain distribution stability?"</em><br/><br/>
 <strong>Strong Answer Framework:</strong><br/>
 1. <strong>Restate the Constraint:</strong> The objective is adapting representation space to detect novel adversarial syntax without degrading benign conversational comprehension or generating false positives on technical text.<br/>
@@ -454,7 +496,26 @@ def evaluate_ner_pipeline(y_true_entities, y_pred_entities):
       {
         name: 'Expert', icon: '🏆',
         analogy: 'In senior interviews, you must demonstrate mastery of both algorithmic privacy (differential privacy) and systems engineering (latency budgets, vault key rotation).',
-        body: `<h3>🎤 Interview Scenario — Senior ML Security Engineer</h3>
+        body: `
+<div class="diagram-block"><pre class="arch-diagram">
+┌──────────────────────────────────────────────────────────────┐
+│              DLP PIPELINE: TRAINING vs INFERENCE             │
+├────────────────────────┬─────────────────────────────────────┤
+│   TRAINING (Offline)   │   RUNTIME INFERENCE (Online)        │
+├────────────────────────┼─────────────────────────────────────┤
+│  Irreversible Redact   │  Reversible Pseudonymization        │
+│  (NER + Regex scrub)   │  (HMAC-SHA256 + KMS salt)           │
+│                        │                                     │
+│  Synthetic PII inject  │  Redis vault (TTL: 15 min)          │
+│  (Faker replacement)   │  Session-scoped per user ID         │
+│                        │                                     │
+│  DP-SGD (ε ≤ 1.0)     │  LLM sees: &lt;PERSON_a3f9&gt;          │
+│  Clip norm = 1.0       │  Response detokenized at gateway    │
+│                        │                                     │
+│  Budget: Hours offline │  Budget: &lt;4ms P95 latency          │
+└────────────────────────┴─────────────────────────────────────┘
+</pre></div>
+<h3>🎤 Interview Scenario — Senior ML Security Engineer</h3>
 <strong>Interviewer:</strong> <em>"How do you handle sensitive PII differently when preparing datasets for LLM pre-training/fine-tuning versus handling PII during real-time user inference?"</em><br/><br/>
 <strong>Strong Answer Framework:</strong><br/>
 1. <strong>Training vs Inference Disparity:</strong> Training data processing is asynchronous, offline, and irreversible; inference is synchronous (budget &lt;5ms), stateful, and must support reversible detokenization.<br/>
@@ -632,7 +693,24 @@ def benchmark_inference(server, test_queries, n_iterations=1000):
       {
         name: 'Expert', icon: '🏆',
         analogy: 'Architecting inference engines requires justifying trade-offs between hardware cost, quant accuracy degradation, and serving framework concurrency models.',
-        body: `<h3>🎤 Interview Scenario — Senior ML Systems Engineer</h3>
+        body: `
+<div class="diagram-block"><pre class="arch-diagram">
+┌─────────────────────────────────────────────────────────────┐
+│           SERVING RUNTIME BENCHMARK @ 5,000 QPS             │
+├────────────────┬──────────┬────────────┬────────────────────┤
+│  Runtime       │  P99 ms  │  Memory    │  GPUs Needed       │
+├────────────────┼──────────┼────────────┼────────────────────┤
+│  PyTorch FP32  │  28.4ms  │  610 MB    │  40 GPUs  💸       │
+│  TorchServe    │  18.1ms  │  540 MB    │  20 GPUs           │
+│  ONNX CPU INT8 │   4.2ms  │  124 MB    │   4 GPUs  ✅       │
+│  Triton TRT    │   0.85ms │   98 MB    │   2 GPUs  🏆       │
+├────────────────┴──────────┴────────────┴────────────────────┤
+│  ✅ Selected: ONNX Runtime INT8 on Triton (best cost/perf)  │
+│  Protocol: gRPC/HTTP2 — 65% less overhead vs REST/HTTP1.1  │
+│  Dynamic batching: max_batch=16, queue_delay=1000μs         │
+└─────────────────────────────────────────────────────────────┘
+</pre></div>
+<h3>🎤 Interview Scenario — Senior ML Systems Engineer</h3>
 <strong>Interviewer:</strong> <em>"We need to serve an NLP threat detection model inline for every prompt submitted to our API at 5,000 QPS with a strict P99 latency SLA of 15ms. Walk me through your serving architecture, runtime choices, and quantization strategy."</em><br/><br/>
 <strong>Strong Answer Framework:</strong><br/>
 1. <strong>Runtime Selection:</strong> Reject raw PyTorch due to Python GIL and memory footprint. Choose NVIDIA Triton Inference Server with the ONNX Runtime C++ backend, utilizing TensorRT execution provider on NVIDIA L4 GPUs.<br/>
@@ -785,7 +863,28 @@ func (g *Gateway) InspectPrompt(ctx context.Context, prompt string) (*PolicyVerd
       {
         name: 'Expert', icon: '🏆',
         analogy: 'Senior infrastructure interviews evaluate your ability to design bulletproof failover modes when dependencies degrade under peak traffic.',
-        body: `<h3>🎤 Interview Scenario — Senior Backend / ML Infrastructure Engineer</h3>
+        body: `
+<div class="diagram-block"><pre class="arch-diagram">
+       GO GATEWAY CIRCUIT BREAKER — STATE MACHINE
+
+  ┌──────────┐  failure ratio &gt;30%   ┌──────────┐
+  │  CLOSED  │───────────────────────▶│   OPEN   │
+  │(normal)  │                        │(tripped) │
+  └────┬─────┘                        └────┬─────┘
+       │                                   │
+   All ML      After 5s timeout            │  Local Fallback
+   calls go    1 probe sent   ◀────────────┘  (Aho-Corasick
+   through     ┌──────────────┐               &lt;0.1ms in Go)
+               │  HALF-OPEN   │
+               └──────┬───────┘
+                      │
+     Success ─────────┘ → back to CLOSED
+     Failure ───────────────────▶ OPEN again
+
+  context.WithTimeout: 15ms hard cutoff on ALL gRPC model calls
+  sync.Pool: zero heap-alloc buffer reuse under 50k QPS
+</pre></div>
+<h3>🎤 Interview Scenario — Senior Backend / ML Infrastructure Engineer</h3>
 <strong>Interviewer:</strong> <em>"Your inline Go gateway is processing 10,000 QPS. The backend ML model cluster suffers a network partition and latency spikes from 4ms to 5,000ms. How do you prevent request thread exhaustion and total system outage?"</em><br/><br/>
 <strong>Strong Answer Framework:</strong><br/>
 1. <strong>Strict Timeout Propagation:</strong> Enforce a hard <code>context.WithTimeout(ctx, 15*time.Millisecond)</code> on all gRPC model calls. Goroutines never wait indefinitely.<br/>
@@ -925,7 +1024,25 @@ def compute_attack_success_rate(clean_correct_indices, adversarial_predictions, 
       {
         name: 'Expert', icon: '🏆',
         analogy: 'Senior ML Security leaders don’t just train models; they build adversarial CI/CD regression gates that automatically block vulnerable model deployments.',
-        body: `<h3>🎤 Interview Scenario — Senior ML Security Engineer</h3>
+        body: `
+<div class="diagram-block"><pre class="arch-diagram">
+┌──────────────────────────────────────────────────────────────┐
+│          ADVERSARIAL RED-TEAM CI/CD RELEASE GATE             │
+│                                                              │
+│  Model Commit ──▶ Auto Eval Harness ──▶ ASR Gate ──▶ Ship?  │
+│                                                              │
+│  12 Evasion Vectors:          Gating Thresholds:            │
+│  ├── Cyrillic homoglyphs      ├── ASR &lt; 1.0%               │
+│  ├── Zero-width spaces (U+200B) ├── ROC-AUC ≥ 0.995         │
+│  ├── Leetspeak permutations   ├── FPR@99%TPR ≤ 0.3%         │
+│  ├── Base64 smuggling         └── Clean accuracy ≥ 99.5%    │
+│  ├── TextFooler synonym swap                                 │
+│  └── Contextual prefix wrapping  If ANY gate FAILS:         │
+│                                  ❌ Block deployment         │
+│  NFKC Normalize ──▶ Strip ZWS ──▶ Tokenize ──▶ Classify    │
+└──────────────────────────────────────────────────────────────┘
+</pre></div>
+<h3>🎤 Interview Scenario — Senior ML Security Engineer</h3>
 <strong>Interviewer:</strong> <em>"How would you design a comprehensive, automated red team evaluation suite for our LLM content moderation and threat detection classifier before it goes live?"</em><br/><br/>
 <strong>Strong Answer Framework:</strong><br/>
 1. <strong>Tri-Model Evaluation Architecture:</strong><br/>
@@ -1085,7 +1202,31 @@ spec:
       {
         name: 'Expert', icon: '🏆',
         analogy: 'Zero-downtime ML rollouts require surgical traffic management — you cannot swap a model mid-flight without warming up GPU kernels first.',
-        body: `<h3>🎤 Interview Scenario — Senior ML Platform / DevOps Engineer</h3>
+        body: `
+<div class="diagram-block"><pre class="arch-diagram">
+        ZERO-DOWNTIME GPU MODEL CANARY ROLLOUT (Istio)
+
+  ┌──────────────────────────────────────────────────────┐
+  │  [User Traffic]                                      │
+  │        │                                             │
+  │   ─────┴─────────────────────────────               │
+  │   │ 95%             │ 5%                            │
+  │   ▼                 ▼                               │
+  │ [v1 Pods ✅]    [v2 Canary Pods 🆕]               │
+  │ (stable)        Readiness: warm-up inference first  │
+  │                                                      │
+  │  Monitor P99 latency + 5xx error rate (10 min)      │
+  │                                                      │
+  │  if P99 &gt; 15ms OR 5xx &gt; 0.1%:                      │
+  │     ❌ Auto-rollback → 100% traffic to v1           │
+  │  else:                                               │
+  │     ✅ Ramp: 5% → 25% → 50% → 100%                │
+  └──────────────────────────────────────────────────────┘
+
+  KEY: Readiness probe = synthetic warm-up inference pass
+       Prevents cold-start CUDA kernel latency spikes!
+</pre></div>
+<h3>🎤 Interview Scenario — Senior ML Platform / DevOps Engineer</h3>
 <strong>Interviewer:</strong> <em>"How do you execute a zero-downtime rolling update of a 2GB model in Kubernetes without running out of GPU memory (OOM) or serving cold-start latency spikes?"</em><br/><br/>
 <strong>Strong Answer Framework:</strong><br/>
 1. <strong>Canary Deployment with Istio Traffic Shifting:</strong> Deploy Version 2 as an independent Deployment. Route 5% of traffic using Istio <code>VirtualService</code>, monitoring error rates and P99 latency before ramping up.<br/>
@@ -1256,7 +1397,32 @@ class LSVSComplianceVerifier:
       {
         name: 'Expert', icon: '🏆',
         analogy: 'This is the capstone senior interview scenario: demonstrating that you can architect safety alignment, automated adversary loops, and release governance for enterprise AI.',
-        body: `<h3>🎤 Interview Scenario — Staff / Principal ML Security Engineer</h3>
+        body: `
+<div class="diagram-block"><pre class="arch-diagram">
+┌──────────────────────────────────────────────────────────────┐
+│        AUTONOMOUS AGENT — DEFENSE-IN-DEPTH LAYERS            │
+├──────────────────────────────────────────────────────────────┤
+│  [User Message]                                              │
+│       │                                                      │
+│  ① Threat Classifier (CH01) — Prompt Injection check         │
+│       │ PASS                                                 │
+│  ② DLP Pseudonymizer (CH03) — PII stripped from context      │
+│       │                                                      │
+│  ③ LLM Reasoning (with pseudonymized safe context)           │
+│       │ tool_call: refund($amount, order_id)                 │
+│       │                                                      │
+│  ④ Go Gateway Policy Gate (CH05) — Authorization:           │
+│       • Session authenticated?  ✓                            │
+│       • Amount ≤ $500?          ✓                            │
+│       • 2FA confirm for &gt;$100?  ✓                           │
+│       │ AUTHORIZED                                           │
+│       │                                                      │
+│  ⑤ Tool Execute ──▶ Response Detokenized ──▶ User           │
+│                                                              │
+│  RED-TEAM CI Gate: ASR &lt; 0.5% to ship 🚀                   │
+└──────────────────────────────────────────────────────────────┘
+</pre></div>
+<h3>🎤 Interview Scenario — Staff / Principal ML Security Engineer</h3>
 <strong>Interviewer:</strong> <em>"We are deploying an autonomous LLM customer support agent with live tool-calling permissions (can refund up to $500, read customer purchase history, and send email). How would you design an automated red-teaming and safety alignment pipeline to prevent abuse before launch?"</em><br/><br/>
 <strong>Strong Answer Framework:</strong><br/>
 1. <strong>Threat Modeling & Attack Tree:</strong> Map specific vectors: indirect injection via manipulated order notes, social engineering for unauthorized refunds, and prompt extraction. Enforce Principle of Least Privilege on tools.<br/>

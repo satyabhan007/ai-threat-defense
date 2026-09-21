@@ -100,46 +100,32 @@ let quizAnswers         = {};   // { questionIndex: selectedOption }
 let quizSubmitted       = false;
 
 /* ══════════════════════════════════════════════════════════════════════
-   2. ComfyUI ECSTATIC WORKFLOW CANVAS
+   2. AURORA PULSE BACKGROUND
    ══════════════════════════════════════════════════════════════════════
-   Authentic, clean, and ecstatic ComfyUI background:
-   - Subtle dot-matrix blueprint grid with major crosshair markers
-   - Named ComfyUI workflow blocks representing the AI threat pipeline
-   - Smooth horizontal cubic bezier S-curve wires with glowing gradients
-   - Multi-particle electric flow (comet trails) travelling along wires
-   - Socket arrival ripples & pulsing status execution LEDs
-   - Gentle cursor magnetism for organic interactivity
-   - Focus mode: automatically softens contrast in chapter view
+   Simple, ecstatic "focus mode" background:
+   - Fine 30px dot-matrix blueprint grid
+   - 6 large slow-drifting aurora orbs with gaussian aura
+   - 4 flowing sine-curve data streams with traveling comet particles
+   - Soft cursor radial glow
+   - Focus mode: CSS body.in-chapter → #nodeCanvas { opacity: 0.08 }
+   No heavy node cards — visual complexity is ZERO in chapter view.
    ══════════════════════════════════════════════════════════════════════ */
 class NodeGraph {
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx    = canvas.getContext('2d');
-    this.nodes  = [];
-    this.wires  = [];
-    this.ripples = [];
-    this.mouse  = { x: -1000, y: -1000, active: false };
-    this.raf    = null;
-    this.W      = 0;
-    this.H      = 0;
+    this.mouse  = { x: -9999, y: -9999, active: false };
+    this.W = this.H = 0;
+    this.orbs    = [];
+    this.streams = [];
+    this.raf     = null;
 
     this._resize();
-    this._initPipeline();
+    this._init();
 
-    window.addEventListener('resize', () => {
-      this._resize();
-      this._initPipeline();
-    });
-
-    window.addEventListener('pointermove', (e) => {
-      this.mouse.x = e.clientX;
-      this.mouse.y = e.clientY;
-      this.mouse.active = true;
-    });
-
-    window.addEventListener('pointerleave', () => {
-      this.mouse.active = false;
-    });
+    window.addEventListener('resize', () => { this._resize(); this._init(); });
+    window.addEventListener('pointermove', e => { this.mouse.x = e.clientX; this.mouse.y = e.clientY; this.mouse.active = true; });
+    window.addEventListener('pointerleave', () => { this.mouse.active = false; });
   }
 
   _resize() {
@@ -147,276 +133,90 @@ class NodeGraph {
     this.H = this.canvas.height = window.innerHeight;
   }
 
-  _initPipeline() {
-    // 9 core workflow nodes representing the AI Threat Defense curriculum
-    const TEMPLATES = [
-      { id: 'ingest',  icon: '📥', title: 'Prompt Ingestion',   tag: 'INPUT',    hue: 186, col: 0.10, row: 0.22, w: 140, h: 54, in: 0, out: 1 },
-      { id: 'dlp',     icon: '🔒', title: 'DLP / HMAC Masker',  tag: 'SECURITY', hue: 142, col: 0.12, row: 0.72, w: 145, h: 54, in: 1, out: 1 },
-      { id: 'tok',     icon: '🔤', title: 'Tokenizer / NER',    tag: 'ENCODER',  hue: 262, col: 0.32, row: 0.32, w: 140, h: 54, in: 1, out: 2 },
-      { id: 'lora',    icon: '🧠', title: 'PEFT LoRA (r=8)',    tag: 'ADAPTER',  hue: 28,  col: 0.34, row: 0.78, w: 135, h: 54, in: 1, out: 1 },
-      { id: 'infer',   icon: '🔬', title: 'Threat Classifier',  tag: 'CORE ML',  hue: 142, col: 0.55, row: 0.25, w: 150, h: 54, in: 2, out: 2 },
-      { id: 'fuzz',    icon: '🎯', title: 'Adversarial Fuzzer', tag: 'EVAL',     hue: 330, col: 0.56, row: 0.75, w: 145, h: 54, in: 1, out: 1 },
-      { id: 'onnx',    icon: '⚡', title: 'Triton ONNX INT8',   tag: 'SERVING',  hue: 310, col: 0.76, row: 0.30, w: 140, h: 54, in: 2, out: 1 },
-      { id: 'breaker', icon: '⚡', title: 'Sony GoBreaker',     tag: 'CIRCUIT',  hue: 45,  col: 0.78, row: 0.74, w: 135, h: 54, in: 1, out: 1 },
-      { id: 'gateway', icon: '🦫', title: 'Go Security Gateway',tag: 'PROXY',    hue: 186, col: 0.92, row: 0.48, w: 150, h: 54, in: 2, out: 1 },
+  _init() {
+    const W = this.W, H = this.H;
+
+    // 6 aurora orbs — slow, large, deeply blurred
+    this.orbs = [
+      { cx: W * 0.15, cy: H * 0.25, r: W * 0.22, hue: 186, alpha: 0.06, speed: 0.00018, px: 0.0, py: 2.1 },
+      { cx: W * 0.75, cy: H * 0.20, r: W * 0.19, hue: 262, alpha: 0.05, speed: 0.00022, px: 1.1, py: 0.4 },
+      { cx: W * 0.50, cy: H * 0.70, r: W * 0.25, hue: 142, alpha: 0.05, speed: 0.00015, px: 3.3, py: 1.0 },
+      { cx: W * 0.88, cy: H * 0.75, r: W * 0.18, hue: 310, alpha: 0.04, speed: 0.00020, px: 0.7, py: 3.2 },
+      { cx: W * 0.30, cy: H * 0.80, r: W * 0.16, hue:  28, alpha: 0.04, speed: 0.00017, px: 2.0, py: 0.9 },
+      { cx: W * 0.65, cy: H * 0.45, r: W * 0.20, hue: 186, alpha: 0.03, speed: 0.00013, px: 1.8, py: 2.7 },
     ];
 
-    const isMobile = this.W < 768;
-    const activeTemplates = isMobile ? TEMPLATES.filter((_, i) => i % 2 === 0) : TEMPLATES;
-
-    this.nodes = activeTemplates.map((t, idx) => {
-      // Responsive layout positioning across viewport columns
-      const baseX = isMobile ? (0.2 + (idx % 2) * 0.55) * this.W : t.col * this.W;
-      const baseY = isMobile ? (0.15 + (idx / activeTemplates.length) * 0.7) * this.H : t.row * this.H;
-
-      return {
-        ...t,
-        x: baseX,
-        y: baseY,
-        baseX,
-        baseY,
-        phaseX: idx * 1.3 + 0.5,
-        phaseY: idx * 1.7 + 0.2,
-        driftSpeed: 0.0006 + (idx % 3) * 0.0002,
-        pulseSpeed: 0.002 + (idx % 4) * 0.001,
-      };
-    });
-
-    // Connect directed workflow wires between nodes
-    const nodeMap = {};
-    this.nodes.forEach(n => nodeMap[n.id] = n);
-
-    const WIRE_DEFS = [
-      { from: 'ingest', to: 'tok',     speed: 0.00035 },
-      { from: 'dlp',    to: 'tok',     speed: 0.00030 },
-      { from: 'tok',    to: 'infer',   speed: 0.00038 },
-      { from: 'lora',   to: 'infer',   speed: 0.00032 },
-      { from: 'fuzz',   to: 'infer',   speed: 0.00028 },
-      { from: 'infer',  to: 'onnx',    speed: 0.00042 },
-      { from: 'infer',  to: 'breaker', speed: 0.00034 },
-      { from: 'onnx',   to: 'gateway', speed: 0.00040 },
-      { from: 'breaker',to: 'gateway', speed: 0.00032 },
-    ];
-
-    this.wires = [];
-    WIRE_DEFS.forEach(w => {
-      if (nodeMap[w.from] && nodeMap[w.to]) {
-        this.wires.push({
-          from: nodeMap[w.from],
-          to:   nodeMap[w.to],
-          speed: w.speed,
-          particles: [0.0, 0.35, 0.7],
-        });
-      }
-    });
+    // 4 sine-wave data streams
+    const hues = [186, 262, 142, 310];
+    this.streams = hues.map((hue, i) => ({
+      hue,
+      yBase:    H * (0.18 + i * 0.20),
+      amp:      18 + i * 8,
+      freq:     0.008 - i * 0.001,
+      speed:    0.00022 + i * 0.00006,
+      particles: [0, 0.33, 0.67],
+    }));
   }
 
-  /** Draw subtle ComfyUI blueprint grid */
+  /* Fine 30-px dot grid */
   _drawGrid(ctx) {
-    const step = 40;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.035)';
-    for (let x = 20; x < this.W; x += step) {
-      for (let y = 20; y < this.H; y += step) {
-        ctx.fillRect(x, y, 1.2, 1.2);
-      }
-    }
-    // Subtle crosshairs at major intersections
-    const major = 200;
-    ctx.strokeStyle = 'rgba(0, 242, 254, 0.06)';
-    ctx.lineWidth = 1;
-    for (let x = 20; x < this.W; x += major) {
-      for (let y = 20; y < this.H; y += major) {
-        ctx.beginPath();
-        ctx.moveTo(x - 5, y); ctx.lineTo(x + 5, y);
-        ctx.moveTo(x, y - 5); ctx.lineTo(x, y + 5);
-        ctx.stroke();
-      }
-    }
+    const step = 30;
+    ctx.fillStyle = 'rgba(255,255,255,0.025)';
+    for (let x = 0; x < this.W; x += step)
+      for (let y = 0; y < this.H; y += step)
+        ctx.fillRect(x, y, 1, 1);
   }
 
-  /** Draw an authentic ComfyUI node card */
-  _drawNode(ctx, n, t) {
-    const w = n.w, h = n.h;
-    const x = n.x - w / 2, y = n.y - h / 2;
+  /* Aurora orb — radial gradient with enormous radius, very low alpha */
+  _drawOrb(ctx, orb, t) {
+    const drift = 38;
+    const x = orb.cx + Math.sin(t * orb.speed + orb.px) * drift;
+    const y = orb.cy + Math.cos(t * orb.speed + orb.py) * drift;
+    const pulse = orb.alpha + 0.012 * Math.sin(t * 0.0009 + orb.px);
 
-    // Mouse proximity illumination
-    let mouseGlow = 0;
-    if (this.mouse.active) {
-      const dist = Math.hypot(n.x - this.mouse.x, n.y - this.mouse.y);
-      if (dist < 220) {
-        mouseGlow = (1 - dist / 220) * 0.45;
-      }
-    }
-
-    const pulse = 0.28 + 0.15 * Math.sin(t * n.pulseSpeed + n.phaseX) + mouseGlow;
-
-    ctx.save();
-    // Card outer glow
-    ctx.shadowColor = `hsla(${n.hue}, 100%, 65%, ${pulse * 0.75})`;
-    ctx.shadowBlur  = 14 + mouseGlow * 12;
-
-    // Card dark glass body
-    ctx.fillStyle   = `rgba(10, 13, 20, 0.75)`;
-    ctx.strokeStyle = `hsla(${n.hue}, 80%, 55%, ${0.25 + pulse * 0.5})`;
-    ctx.lineWidth   = 1.2;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, orb.r);
+    g.addColorStop(0,   `hsla(${orb.hue},100%,60%,${pulse})`);
+    g.addColorStop(0.4, `hsla(${orb.hue},90%,50%,${pulse * 0.45})`);
+    g.addColorStop(1,   `hsla(${orb.hue},80%,40%,0)`);
+    ctx.fillStyle = g;
     ctx.beginPath();
-    ctx.roundRect(x, y, w, h, 6);
+    ctx.arc(x, y, orb.r, 0, Math.PI * 2);
     ctx.fill();
-    ctx.stroke();
-
-    // Node Header bar
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = `hsla(${n.hue}, 70%, 25%, ${0.35 + pulse * 0.25})`;
-    ctx.beginPath();
-    ctx.roundRect(x, y, w, 16, [6, 6, 0, 0]);
-    ctx.fill();
-
-    // Header title & category tag
-    ctx.font = '600 9px Inter, system-ui, sans-serif';
-    ctx.fillStyle = `hsla(${n.hue}, 95%, 85%, 0.95)`;
-    ctx.fillText(`${n.icon} ${n.title}`, x + 6, y + 11);
-
-    // Mini category pill
-    ctx.font = '700 7px Inter, monospace';
-    ctx.fillStyle = `hsla(${n.hue}, 90%, 65%, 0.8)`;
-    const tagW = ctx.measureText(n.tag).width;
-    ctx.fillText(n.tag, x + w - tagW - 14, y + 11);
-
-    // Pulsing execution LED in top-right
-    const ledAlpha = 0.5 + 0.5 * Math.sin(t * 0.004 + n.phaseY);
-    ctx.beginPath();
-    ctx.arc(x + w - 7, y + 8, 2.5, 0, Math.PI * 2);
-    ctx.fillStyle = `hsla(${n.hue}, 100%, 70%, ${ledAlpha})`;
-    ctx.shadowColor = `hsla(${n.hue}, 100%, 70%, 0.9)`;
-    ctx.shadowBlur = 5;
-    ctx.fill();
-    ctx.shadowBlur = 0;
-
-    // Input sockets (left)
-    if (n.in > 0) {
-      const step = h / (n.in + 1);
-      for (let i = 1; i <= n.in; i++) {
-        const sy = y + step * i;
-        ctx.beginPath();
-        ctx.arc(x - 3, sy, 3.2, 0, Math.PI * 2);
-        ctx.fillStyle = `hsla(${n.hue}, 90%, 60%, 0.85)`;
-        ctx.fill();
-        ctx.strokeStyle = `hsla(${n.hue}, 100%, 80%, 0.6)`;
-        ctx.lineWidth = 1;
-        ctx.stroke();
-      }
-    }
-
-    // Output sockets (right)
-    if (n.out > 0) {
-      const step = h / (n.out + 1);
-      for (let i = 1; i <= n.out; i++) {
-        const sy = y + step * i;
-        ctx.beginPath();
-        ctx.arc(x + w + 3, sy, 3.2, 0, Math.PI * 2);
-        ctx.fillStyle = `hsla(${n.hue}, 90%, 60%, 0.85)`;
-        ctx.fill();
-        ctx.strokeStyle = `hsla(${n.hue}, 100%, 80%, 0.6)`;
-        ctx.lineWidth = 1;
-        ctx.stroke();
-      }
-    }
-
-    ctx.restore();
   }
 
-  /** Draw S-curve wires with glowing gradient & traveling comet packets */
-  _drawWire(ctx, w, t) {
-    const a = w.from, b = w.to;
-    const ax = a.x + a.w / 2 + 3, ay = a.y + (a.h * 0.55);
-    const bx = b.x - b.w / 2 - 3, by = b.y + (b.h * 0.55);
-
-    const dx = Math.max(45, (bx - ax) * 0.52);
-    const cp1x = ax + dx, cp1y = ay;
-    const cp2x = bx - dx, cp2y = by;
-
-    let wireBoost = 0;
-    if (this.mouse.active) {
-      const midX = (ax + bx) / 2, midY = (ay + by) / 2;
-      const d = Math.hypot(midX - this.mouse.x, midY - this.mouse.y);
-      if (d < 200) wireBoost = (1 - d / 200) * 0.4;
+  /* Sine-wave stream with comet particles */
+  _drawStream(ctx, s, t) {
+    const W = this.W;
+    // Draw the sine path
+    ctx.beginPath();
+    for (let x = 0; x <= W; x += 3) {
+      const y = s.yBase + Math.sin(x * s.freq + t * 0.0008) * s.amp;
+      x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
     }
-
-    const baseAlpha = 0.22 + wireBoost;
-
-    // Soft outer neon glow wire
-    const glowGrad = ctx.createLinearGradient(ax, ay, bx, by);
-    glowGrad.addColorStop(0, `hsla(${a.hue}, 100%, 65%, ${baseAlpha * 0.7})`);
-    glowGrad.addColorStop(1, `hsla(${b.hue}, 100%, 65%, ${baseAlpha * 0.7})`);
-
-    ctx.beginPath();
-    ctx.moveTo(ax, ay);
-    ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, bx, by);
-    ctx.strokeStyle = glowGrad;
-    ctx.lineWidth   = 3.2;
+    ctx.strokeStyle = `hsla(${s.hue},100%,65%,0.10)`;
+    ctx.lineWidth   = 1;
     ctx.stroke();
 
-    // Core crisp wire
-    const coreGrad = ctx.createLinearGradient(ax, ay, bx, by);
-    coreGrad.addColorStop(0, `hsla(${a.hue}, 95%, 75%, ${baseAlpha * 1.6})`);
-    coreGrad.addColorStop(1, `hsla(${b.hue}, 95%, 75%, ${baseAlpha * 1.6})`);
+    // Comet particles along the sine curve
+    for (const offset of s.particles) {
+      const prog = ((t * s.speed + offset) % 1);
+      const px   = prog * W;
+      const py   = s.yBase + Math.sin(px * s.freq + t * 0.0008) * s.amp;
 
-    ctx.beginPath();
-    ctx.moveTo(ax, ay);
-    ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, bx, by);
-    ctx.strokeStyle = coreGrad;
-    ctx.lineWidth   = 1.2;
-    ctx.stroke();
-
-    // Traveling electric data packets (comet tail)
-    for (let pIdx = 0; pIdx < w.particles.length; pIdx++) {
-      const speedMult = 1.0 + wireBoost * 1.5;
-      const progress = (t * w.speed * speedMult + w.particles[pIdx]) % 1;
-
-      for (let step = 3; step >= 0; step--) {
-        const pStep = Math.max(0, progress - step * 0.022);
-        const px = Math.pow(1-pStep,3)*ax + 3*Math.pow(1-pStep,2)*pStep*cp1x
-                 + 3*(1-pStep)*Math.pow(pStep,2)*cp2x + Math.pow(pStep,3)*bx;
-        const py = Math.pow(1-pStep,3)*ay + 3*Math.pow(1-pStep,2)*pStep*cp1y
-                 + 3*(1-pStep)*Math.pow(pStep,2)*cp2y + Math.pow(pStep,3)*by;
-
-        const isHead = step === 0;
-        const radius = isHead ? 2.8 : (1.8 - step * 0.4);
-        const tailAlpha = isHead ? (0.85 + wireBoost) : (0.45 - step * 0.12);
-
+      // Tail
+      for (let tail = 4; tail >= 0; tail--) {
+        const tp   = Math.max(0, prog - tail * 0.018);
+        const tx   = tp * W;
+        const ty   = s.yBase + Math.sin(tx * s.freq + t * 0.0008) * s.amp;
+        const tr   = tail === 0 ? 2.5 : (1.8 - tail * 0.3);
+        const ta   = tail === 0 ? 0.90 : (0.45 - tail * 0.09);
         ctx.beginPath();
-        ctx.arc(px, py, Math.max(0.6, radius), 0, Math.PI * 2);
-        ctx.fillStyle = isHead ? `hsla(${a.hue}, 100%, 88%, ${tailAlpha})` : `hsla(${a.hue}, 90%, 65%, ${tailAlpha})`;
-        if (isHead) {
-          ctx.shadowColor = `hsla(${a.hue}, 100%, 80%, 0.9)`;
-          ctx.shadowBlur  = 8;
-        }
+        ctx.arc(tx, ty, Math.max(0.5, tr), 0, Math.PI * 2);
+        ctx.fillStyle = `hsla(${s.hue},100%,${tail===0?90:70}%,${ta})`;
+        if (tail === 0) { ctx.shadowColor = `hsla(${s.hue},100%,80%,0.8)`; ctx.shadowBlur = 7; }
         ctx.fill();
         ctx.shadowBlur = 0;
       }
-
-      // Socket arrival ripple trigger
-      if (progress > 0.985 && progress < 0.995 && Math.random() < 0.3) {
-        this.ripples.push({ x: bx, y: by, hue: b.hue, r: 2, maxR: 16, alpha: 0.7 });
-      }
-    }
-  }
-
-  /** Render socket arrival ripple halos */
-  _drawRipples(ctx) {
-    for (let i = this.ripples.length - 1; i >= 0; i--) {
-      const rip = this.ripples[i];
-      rip.r += 0.55;
-      rip.alpha *= 0.94;
-      if (rip.alpha < 0.03 || rip.r >= rip.maxR) {
-        this.ripples.splice(i, 1);
-        continue;
-      }
-      ctx.beginPath();
-      ctx.arc(rip.x, rip.y, rip.r, 0, Math.PI * 2);
-      ctx.strokeStyle = `hsla(${rip.hue}, 100%, 75%, ${rip.alpha})`;
-      ctx.lineWidth = 1;
-      ctx.stroke();
     }
   }
 
@@ -424,47 +224,28 @@ class NodeGraph {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.W, this.H);
 
-    // 1. ComfyUI Blueprint Grid
+    // 1. Dot grid
     this._drawGrid(ctx);
 
-    // 2. Soft Cursor Aura
+    // 2. Aurora orbs (order: back to front)
+    for (const orb of this.orbs) this._drawOrb(ctx, orb, t);
+
+    // 3. Sine data streams
+    for (const s of this.streams) this._drawStream(ctx, s, t);
+
+    // 4. Cursor soft glow (very subtle)
     if (this.mouse.active) {
-      const grad = ctx.createRadialGradient(
-        this.mouse.x, this.mouse.y, 0,
-        this.mouse.x, this.mouse.y, 220
-      );
-      grad.addColorStop(0, 'rgba(121, 40, 202, 0.08)');
-      grad.addColorStop(0.5, 'rgba(0, 242, 254, 0.04)');
-      grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = grad;
-      ctx.fillRect(this.mouse.x - 220, this.mouse.y - 220, 440, 440);
-    }
-
-    // 3. Update node floating drift (organic swaying)
-    for (const n of this.nodes) {
-      n.x = n.baseX + Math.sin(t * n.driftSpeed + n.phaseX) * 12;
-      n.y = n.baseY + Math.cos(t * n.driftSpeed + n.phaseY) * 9;
-    }
-
-    // 4. Draw S-Curve Wires & Electric comet packets
-    for (const w of this.wires) {
-      this._drawWire(ctx, w, t);
-    }
-
-    // 5. Draw Arrival Ripples
-    this._drawRipples(ctx);
-
-    // 6. Draw Nodes
-    for (const n of this.nodes) {
-      this._drawNode(ctx, n, t);
+      const g = ctx.createRadialGradient(this.mouse.x, this.mouse.y, 0, this.mouse.x, this.mouse.y, 180);
+      g.addColorStop(0,   'rgba(121,40,202,0.07)');
+      g.addColorStop(0.6, 'rgba(0,242,254,0.03)');
+      g.addColorStop(1,   'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(this.mouse.x - 180, this.mouse.y - 180, 360, 360);
     }
   }
 
   start() {
-    const loop = (t) => {
-      this._draw(t);
-      this.raf = requestAnimationFrame(loop);
-    };
+    const loop = (t) => { this._draw(t); this.raf = requestAnimationFrame(loop); };
     this.raf = requestAnimationFrame(loop);
   }
 }
