@@ -1,18 +1,58 @@
 /**
- * AI Threat Defense — Curriculum Site
- * ─────────────────────────────────────
- * • ComfyUI-style animated node-graph canvas background
- * • Smooth page / section transitions
- * • TypeSafe Jev API integration (Score + Noul primitives)
- *   → rates each chapter for relevance, production-readiness, and
- *     industry-fit against the job-requirement topic chosen by the user
+ * ============================================================
+ * app.js — AI Threat Defense Interactive Course Engine
+ * ============================================================
  *
- * Pre-computed Jev results (jev-latest, topic: ML Security & Threat Detection)
- * are embedded below so the page shows real scores without requiring an API key.
+ * ARCHITECTURE (for agents reading this file):
+ * ─────────────────────────────────────────────
+ * This is a Single-Page Application (SPA) with two views:
+ *
+ *   1. HOME VIEW  (#view-home)
+ *      - Chapter cards grid (from COURSE_DATA in course-data.js)
+ *      - Overall progress bar
+ *      - Jev Analysis section (pre-computed, no API key needed)
+ *
+ *   2. CHAPTER VIEW  (#view-chapter)
+ *      - 5 level tabs (Analyst → Expert), unlocked progressively
+ *      - Level content: analogy callout, body text, code block, link
+ *      - Checkpoint quiz at Expert level (3 questions)
+ *      - Prev/Next level navigation
+ *
+ * PROGRESS MODEL:
+ *   localStorage key: "atd_progress"
+ *   Value: JSON object { [chapterId]: levelReached }
+ *     levelReached: 0 = not started, 1-4 = levels unlocked, 5 = quiz passed
+ *
+ * DATA DEPENDENCIES:
+ *   window.COURSE_DATA — loaded by course-data.js (must be before app.js)
+ *   window.PRECOMPUTED_JEV — Jev scores defined in this file below
+ *
+ * VIEW SWITCHING:
+ *   showHome()   — shows #view-home, hides #view-chapter
+ *   showChapter(chapterIndex) — reverse; renders the selected chapter
+ *
+ * ============================================================
+ * FILE STRUCTURE:
+ *   1. Constants & state
+ *   2. ComfyUI canvas animation
+ *   3. Progress persistence (localStorage)
+ *   4. Home view render
+ *   5. Chapter view render
+ *   6. Level tab logic
+ *   7. Quiz logic
+ *   8. Jev analysis render (no API key, pre-computed)
+ *   9. Boot (DOMContentLoaded)
+ * ============================================================
  */
 
-// ── Pre-computed Jev Results (jev-latest · 2026-09-21 · 1.12s) ────────
-const PRECOMPUTED_RESULTS = {
+/* ══════════════════════════════════════════════════════════════════════
+   1. CONSTANTS & STATE
+   ══════════════════════════════════════════════════════════════════════ */
+
+/** Pre-computed Jev results (jev-latest · 2026-09-21 · topic: ML Security).
+ *  These are real scores from the API — no key needed to view them.
+ *  Structure matches /tmp/jev_results.json */
+const PRECOMPUTED_JEV = {
   topic: 'ML Security & Threat Detection — Senior ML Engineer',
   composite_avg: 59,
   industry_fit_chapters: 8,
@@ -44,50 +84,71 @@ const PRECOMPUTED_RESULTS = {
   ],
 };
 
-/* ════════════════════════════════════════════════════════════════════════
-   1. ComfyUI Node-Graph Canvas
-   ════════════════════════════════════════════════════════════════════════ */
+/** Level names and icons — index 0..4 maps to Analyst→Expert */
+const LEVELS = [
+  { name: 'Analyst',      icon: '🔍' },
+  { name: 'Practitioner', icon: '⚙️' },
+  { name: 'Builder',      icon: '🔧' },
+  { name: 'Advanced',     icon: '🚀' },
+  { name: 'Expert',       icon: '🏆' },
+];
+
+// Mutable state
+let currentChapterIndex = -1;  // which chapter is open (-1 = home)
+let currentLevelIndex   = 0;   // which level tab is active (0-4)
+let quizAnswers         = {};   // { questionIndex: selectedOption }
+let quizSubmitted       = false;
+
+/* ══════════════════════════════════════════════════════════════════════
+   2. ComfyUI NODE-GRAPH CANVAS
+   ══════════════════════════════════════════════════════════════════════
+   Draws an animated background resembling ComfyUI's node editor:
+   - Nodes: either "dot" (simple circle) or "box" (mini ComfyUI node card)
+   - Edges: bezier curves with animated data-packet dots travelling along them
+   - Palette: 5 HSL hues (cyan, violet, green, orange, magenta)
+   ══════════════════════════════════════════════════════════════════════ */
 class NodeGraph {
   constructor(canvas) {
     this.canvas = canvas;
-    this.ctx = canvas.getContext('2d');
-    this.nodes = [];
-    this.edges = [];
-    this.raf = null;
-    this.resize();
-    this.generate();
-    window.addEventListener('resize', () => { this.resize(); this.generate(); });
+    this.ctx    = canvas.getContext('2d');
+    this.nodes  = [];
+    this.edges  = [];
+    this.raf    = null;
+    this._resize();
+    this._generate();
+    window.addEventListener('resize', () => { this._resize(); this._generate(); });
   }
 
-  resize() {
+  _resize() {
     this.canvas.width  = window.innerWidth;
     this.canvas.height = window.innerHeight;
     this.W = this.canvas.width;
     this.H = this.canvas.height;
   }
 
-  generate() {
-    const N = Math.floor((this.W * this.H) / 28000);
+  _generate() {
+    // Node density: ~1 node per 28,000px² of screen area
+    const N = Math.max(8, Math.floor((this.W * this.H) / 28000));
     this.nodes = Array.from({ length: N }, () => ({
       x: Math.random() * this.W,
       y: Math.random() * this.H,
-      vx: (Math.random() - 0.5) * 0.25,
-      vy: (Math.random() - 0.5) * 0.25,
+      vx: (Math.random() - 0.5) * 0.2,   // slow drift
+      vy: (Math.random() - 0.5) * 0.2,
       r: 3 + Math.random() * 4,
       hue: [186, 262, 142, 28, 322][Math.floor(Math.random() * 5)],
       pulse: Math.random() * Math.PI * 2,
       pulseSpeed: 0.012 + Math.random() * 0.02,
       type: Math.random() > 0.7 ? 'box' : 'dot',
-      // ComfyUI-style node sockets
-      inputs:  Math.floor(Math.random() * 3),
+      inputs:  Math.floor(Math.random() * 3),   // socket count (ComfyUI style)
       outputs: Math.floor(Math.random() * 3),
     }));
-    // Build edges (connect nodes within 200px)
+
+    // Edges: connect nodes within 200px (max N*2 edges to avoid O(n²) overload)
     this.edges = [];
     for (let i = 0; i < this.nodes.length; i++) {
       for (let j = i + 1; j < this.nodes.length; j++) {
-        const dx = this.nodes[i].x - this.nodes[j].x;
-        const dy = this.nodes[i].y - this.nodes[j].y;
+        const dx   = this.nodes[i].x - this.nodes[j].x;
+        const dy   = this.nodes[i].y - this.nodes[j].y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < 200 && this.edges.length < N * 2) {
           this.edges.push({ a: i, b: j, dist });
@@ -96,68 +157,70 @@ class NodeGraph {
     }
   }
 
-  drawComfyNode(ctx, n, t) {
+  /** Draw a ComfyUI-style mini node card with socket dots */
+  _drawBox(ctx, n, t) {
     const w = 70, h = 44;
     const x = n.x - w / 2, y = n.y - h / 2;
     const glow = 0.3 + 0.2 * Math.sin(n.pulse + t * n.pulseSpeed);
 
-    // Node body
     ctx.save();
     ctx.shadowColor = `hsla(${n.hue},100%,60%,${glow})`;
-    ctx.shadowBlur = 12;
+    ctx.shadowBlur  = 12;
+    // Card body
+    ctx.fillStyle   = `hsla(${n.hue},40%,10%,0.55)`;
     ctx.strokeStyle = `hsla(${n.hue},80%,60%,${glow * 0.9})`;
-    ctx.lineWidth = 1;
-    ctx.fillStyle = `hsla(${n.hue},40%,10%,0.55)`;
+    ctx.lineWidth   = 1;
     ctx.beginPath();
     ctx.roundRect(x, y, w, h, 5);
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-
+    ctx.fill(); ctx.stroke();
     // Header bar
     ctx.fillStyle = `hsla(${n.hue},70%,35%,0.55)`;
     ctx.beginPath();
     ctx.roundRect(x, y, w, 12, [5, 5, 0, 0]);
     ctx.fill();
-
-    // Socket dots — inputs left, outputs right
+    // Input sockets (left side)
     for (let i = 0; i < n.inputs; i++) {
-      const sy = y + 20 + i * 10;
       ctx.beginPath();
-      ctx.arc(x - 4, sy, 3.5, 0, Math.PI * 2);
+      ctx.arc(x - 4, y + 20 + i * 10, 3.5, 0, Math.PI * 2);
       ctx.fillStyle = `hsla(${n.hue},90%,65%,0.8)`;
       ctx.fill();
     }
+    // Output sockets (right side)
     for (let i = 0; i < n.outputs; i++) {
-      const sy = y + 20 + i * 10;
       ctx.beginPath();
-      ctx.arc(x + w + 4, sy, 3.5, 0, Math.PI * 2);
+      ctx.arc(x + w + 4, y + 20 + i * 10, 3.5, 0, Math.PI * 2);
       ctx.fillStyle = `hsla(${n.hue},90%,65%,0.8)`;
       ctx.fill();
     }
+    ctx.restore();
   }
 
-  drawDot(ctx, n, t) {
+  /** Draw a simple glowing dot */
+  _drawDot(ctx, n, t) {
     const a = 0.35 + 0.25 * Math.sin(n.pulse + t * n.pulseSpeed);
     ctx.beginPath();
     ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
-    ctx.fillStyle = `hsla(${n.hue},90%,65%,${a})`;
+    ctx.fillStyle   = `hsla(${n.hue},90%,65%,${a})`;
     ctx.shadowColor = `hsla(${n.hue},100%,60%,${a * 0.7})`;
-    ctx.shadowBlur = 10;
+    ctx.shadowBlur  = 10;
     ctx.fill();
   }
 
-  draw(t) {
+  _draw(t) {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.W, this.H);
 
-    // Edges (bezier wires like ComfyUI)
+    // ── Edges (bezier wires with travelling data packets) ──
     for (const e of this.edges) {
       const a = this.nodes[e.a], b = this.nodes[e.b];
       const alpha = Math.max(0, 1 - e.dist / 200) * 0.3;
       if (alpha < 0.01) continue;
+
+      // Control points for S-curve (ComfyUI style)
       const cp1x = a.x + (b.x - a.x) * 0.5, cp1y = a.y;
       const cp2x = a.x + (b.x - a.x) * 0.5, cp2y = b.y;
+
+      // Gradient wire
       const g = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
       g.addColorStop(0, `hsla(${a.hue},80%,60%,${alpha})`);
       g.addColorStop(1, `hsla(${b.hue},80%,60%,${alpha})`);
@@ -165,666 +228,663 @@ class NodeGraph {
       ctx.moveTo(a.x, a.y);
       ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, b.x, b.y);
       ctx.strokeStyle = g;
-      ctx.lineWidth = 1;
-      ctx.shadowBlur = 0;
+      ctx.lineWidth   = 1;
+      ctx.shadowBlur  = 0;
       ctx.stroke();
 
-      // Animated packet
+      // Animated data packet (dot travelling along the bezier)
       const progress = (t * 0.0004 + e.a * 0.13) % 1;
-      const px = Math.pow(1 - progress, 3) * a.x + 3 * Math.pow(1 - progress, 2) * progress * cp1x
-               + 3 * (1 - progress) * Math.pow(progress, 2) * cp2x + Math.pow(progress, 3) * b.x;
-      const py = Math.pow(1 - progress, 3) * a.y + 3 * Math.pow(1 - progress, 2) * progress * cp1y
-               + 3 * (1 - progress) * Math.pow(progress, 2) * cp2y + Math.pow(progress, 3) * b.y;
+      const px = Math.pow(1-progress,3)*a.x + 3*Math.pow(1-progress,2)*progress*cp1x
+               + 3*(1-progress)*Math.pow(progress,2)*cp2x + Math.pow(progress,3)*b.x;
+      const py = Math.pow(1-progress,3)*a.y + 3*Math.pow(1-progress,2)*progress*cp1y
+               + 3*(1-progress)*Math.pow(progress,2)*cp2y + Math.pow(progress,3)*b.y;
       ctx.beginPath();
       ctx.arc(px, py, 2, 0, Math.PI * 2);
-      ctx.fillStyle = `hsla(${a.hue},100%,80%,${alpha * 2})`;
+      ctx.fillStyle   = `hsla(${a.hue},100%,80%,${alpha * 2})`;
       ctx.shadowColor = `hsla(${a.hue},100%,80%,0.8)`;
-      ctx.shadowBlur = 6;
+      ctx.shadowBlur  = 6;
       ctx.fill();
     }
 
     ctx.shadowBlur = 0;
 
-    // Nodes
+    // ── Nodes ──
     for (const n of this.nodes) {
-      n.x += n.vx;
-      n.y += n.vy;
+      n.x += n.vx; n.y += n.vy;
       if (n.x < 0 || n.x > this.W) n.vx *= -1;
       if (n.y < 0 || n.y > this.H) n.vy *= -1;
-      if (n.type === 'box') {
-        this.drawComfyNode(ctx, n, t);
-      } else {
-        this.drawDot(ctx, n, t);
-      }
+      if (n.type === 'box') this._drawBox(ctx, n, t);
+      else                  this._drawDot(ctx, n, t);
     }
   }
 
   start() {
-    const loop = (t) => {
-      this.draw(t);
-      this.raf = requestAnimationFrame(loop);
-    };
+    const loop = (t) => { this._draw(t); this.raf = requestAnimationFrame(loop); };
     this.raf = requestAnimationFrame(loop);
   }
 }
 
-/* ════════════════════════════════════════════════════════════════════════
-   2. Page Transitions
-   ════════════════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════════════
+   3. PROGRESS PERSISTENCE
+   ══════════════════════════════════════════════════════════════════════
+   Progress is stored as { [chapterId]: levelReached } where:
+     0 = not started (no levels completed)
+     1 = Analyst completed
+     2 = Practitioner completed
+     3 = Builder completed
+     4 = Advanced completed
+     5 = Expert + quiz passed (chapter complete)
+   ══════════════════════════════════════════════════════════════════════ */
+
+const STORAGE_KEY = 'atd_progress';
+
+/** Load progress from localStorage. Returns {} if none saved. */
+function loadProgress() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+/** Save progress to localStorage. */
+function saveProgress(progress) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+}
+
+/** Get the number of levels reached for a chapter (0-5). */
+function getChapterProgress(chId) {
+  const p = loadProgress();
+  return p[chId] || 0;
+}
+
+/** Advance a chapter's progress by one level (up to 5). */
+function advanceLevelProgress(chId, toLevel) {
+  const p = loadProgress();
+  p[chId] = Math.max(p[chId] || 0, toLevel);
+  saveProgress(p);
+  updateOverallProgress();
+}
+
+/** Compute total completed chapters (progress === 5) and update UI. */
+function updateOverallProgress() {
+  const p = loadProgress();
+  const total     = window.COURSE_DATA.length;
+  const completed = Object.values(p).filter(v => v >= 5).length;
+  const pct       = Math.round((completed / total) * 100);
+
+  // Navbar mini bar
+  const fill  = document.getElementById('overall-progress-fill');
+  const label = document.getElementById('overall-progress-label');
+  if (fill)  fill.style.width = pct + '%';
+  if (label) label.textContent = `${completed}/${total} chapters`;
+
+  // Home hero bar
+  const homeFill  = document.getElementById('home-prog-fill');
+  const homeLabel = document.getElementById('home-prog-text');
+  if (homeFill)  homeFill.style.width = pct + '%';
+  if (homeLabel) homeLabel.textContent = `Overall progress: ${pct}% · ${completed}/${total} chapters completed — pick any chapter below`;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   4. VIEW SWITCHING
+   ══════════════════════════════════════════════════════════════════════ */
+
+/** Show the home view (chapter grid + Jev analysis). */
+function showHome() {
+  document.getElementById('view-home').classList.remove('hidden');
+  document.getElementById('view-chapter').classList.add('hidden');
+  document.getElementById('breadcrumb').classList.add('hidden');
+  document.getElementById('overall-progress-wrap').classList.remove('hidden');
+  currentChapterIndex = -1;
+  updateOverallProgress();
+  // Scroll to top
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/** Show the chapter view for chapterIndex (0-7). */
+function showChapter(chIndex) {
+  currentChapterIndex = chIndex;
+  currentLevelIndex   = 0;
+  quizAnswers         = {};
+  quizSubmitted       = false;
+
+  document.getElementById('view-home').classList.add('hidden');
+  document.getElementById('view-chapter').classList.remove('hidden');
+  document.getElementById('breadcrumb').classList.remove('hidden');
+  document.getElementById('overall-progress-wrap').classList.add('hidden');
+
+  const ch = window.COURSE_DATA[chIndex];
+  document.getElementById('breadcrumb-chapter').textContent = `${ch.icon} ${ch.title}`;
+
+  // Render the chapter header and first level
+  renderChapterHeader(ch);
+  renderLevelTabs(ch, chIndex);
+  renderLevel(ch, chIndex, 0);
+  updateLevelNavButtons(chIndex, 0);
+
+  window.scrollTo({ top: 0, behavior: 'instant' });
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   5. HOME VIEW RENDER
+   ══════════════════════════════════════════════════════════════════════ */
+
+/** Build the chapter cards grid on the home page. */
+function renderChapterCards() {
+  const grid = document.getElementById('chapters-grid');
+  if (!grid) return;
+
+  grid.innerHTML = window.COURSE_DATA.map((ch, idx) => {
+    const prog     = getChapterProgress(ch.id);  // 0-5
+    const pct      = Math.round((prog / 5) * 100);
+    const done     = prog >= 5;
+    const started  = prog > 0;
+    const jevData  = PRECOMPUTED_JEV.chapters.find(c => c.id === ch.id);
+    const jevScore = jevData ? jevData.composite : '--';
+
+    // Badge: "Complete ✓" | "In Progress" | level number
+    let badge = '';
+    if (done)         badge = `<span class="ch-badge done">✓ Complete</span>`;
+    else if (started) badge = `<span class="ch-badge inprog">L${prog} reached</span>`;
+
+    // Progress dots (5 dots, filled up to prog)
+    const dots = Array.from({ length: 5 }, (_, i) =>
+      `<span class="prog-dot ${i < prog ? 'filled' : ''}"></span>`
+    ).join('');
+
+    return `
+      <button class="chapter-card ${done ? 'done' : ''}" data-ch="${idx}" id="card-${ch.id}">
+        <div class="card-top">
+          <div class="card-icon">${ch.icon}</div>
+          <div class="card-meta">
+            <span class="card-tag">${ch.tag}</span>
+            ${badge}
+          </div>
+          <div class="card-jev-score" title="Jev ML Security score">
+            <span class="jev-mini-score">${jevScore}</span>
+            <span class="jev-mini-label">/100</span>
+          </div>
+        </div>
+        <h3 class="card-num-title"><span class="card-num">${ch.num}.</span> ${ch.title}</h3>
+        <p class="card-subtitle">${ch.subtitle}</p>
+        <div class="card-use-cases">
+          ${ch.useCases.map(u => `<span class="use-case-tag">${u}</span>`).join('')}
+        </div>
+        <div class="card-progress-dots">${dots}</div>
+        <div class="card-progress-bar-wrap">
+          <div class="card-progress-bar" style="width:${pct}%"></div>
+        </div>
+      </button>
+    `;
+  }).join('');
+
+  // Attach click handlers
+  grid.querySelectorAll('[data-ch]').forEach(btn => {
+    btn.addEventListener('click', () => showChapter(parseInt(btn.dataset.ch, 10)));
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   6. CHAPTER VIEW RENDER
+   ══════════════════════════════════════════════════════════════════════ */
+
+/** Render the chapter header (icon, tag, title, subtitle, use cases). */
+function renderChapterHeader(ch) {
+  document.getElementById('ch-eyebrow').innerHTML = `
+    <span class="ch-icon">${ch.icon}</span>
+    <span class="ch-tag-badge">${ch.tag}</span>
+  `;
+  document.getElementById('ch-title').textContent    = `${ch.num}. ${ch.title}`;
+  document.getElementById('ch-subtitle').textContent = ch.subtitle;
+  document.getElementById('ch-use-cases').innerHTML  = ch.useCases
+    .map(u => `<span class="use-case-tag">${u}</span>`).join('');
+}
+
+/**
+ * Render the 5 level tabs, respecting the user's current progress.
+ * Levels are "locked" if the previous level hasn't been completed.
+ * The first level (Analyst) is always unlocked.
+ */
+function renderLevelTabs(ch, chIndex) {
+  const prog    = getChapterProgress(ch.id);  // levels completed so far
+  const tabsEl  = document.getElementById('level-tabs');
+
+  tabsEl.innerHTML = LEVELS.map((lv, i) => {
+    const unlocked = i <= prog;               // prog=0 → only tab 0 unlocked
+    const active   = i === currentLevelIndex;
+    const done     = i < prog || (prog >= 5 && i === 4);
+    const lockIcon = done ? '✓' : (unlocked ? '' : '🔒');
+
+    return `
+      <button
+        class="level-tab ${active ? 'active' : ''} ${done ? 'done' : ''} ${!unlocked ? 'locked' : ''}"
+        data-level="${i}"
+        ${!unlocked ? 'disabled' : ''}
+        id="tab-level-${i}"
+      >
+        ${lv.icon} ${lv.name} ${lockIcon ? `<span class="tab-lock">${lockIcon}</span>` : ''}
+      </button>
+    `;
+  }).join('');
+
+  // Attach click handlers for unlocked tabs
+  tabsEl.querySelectorAll('[data-level]:not([disabled])').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const lvIdx = parseInt(btn.dataset.level, 10);
+      switchLevel(chIndex, lvIdx);
+    });
+  });
+}
+
+/** Switch to a specific level tab within the current chapter. */
+function switchLevel(chIndex, lvIdx) {
+  currentLevelIndex = lvIdx;
+  quizAnswers   = {};
+  quizSubmitted = false;
+  const ch = window.COURSE_DATA[chIndex];
+  renderLevelTabs(ch, chIndex);
+  renderLevel(ch, chIndex, lvIdx);
+  updateLevelNavButtons(chIndex, lvIdx);
+  // Smooth scroll to content
+  document.getElementById('level-content').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/**
+ * Render the content for one level.
+ * Level 4 (Expert) also shows the chapter quiz after the level content.
+ */
+function renderLevel(ch, chIndex, lvIdx) {
+  const lv      = ch.levels[lvIdx];
+  const content = document.getElementById('level-content');
+
+  // Code block (optional)
+  const codeBlock = lv.code ? `
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-lang">${lv.codeLang || 'code'}</span>
+        <button class="copy-btn" data-code="${encodeURIComponent(lv.code)}" title="Copy code">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+          </svg>
+          Copy
+        </button>
+      </div>
+      <pre><code>${escapeHtml(lv.code)}</code></pre>
+    </div>
+  ` : '';
+
+  // External link (optional)
+  const linkEl = lv.link ? `
+    <a href="${lv.link.href}" target="_blank" class="level-code-link">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+        <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+      </svg>
+      ${lv.link.label}
+    </a>
+  ` : '';
+
+  // Callout box (optional — "In your daily life" style)
+  const calloutEl = lv.callout ? `
+    <div class="level-callout">
+      <div class="callout-label">${lv.callout.label}</div>
+      <div class="callout-body">${lv.callout.text}</div>
+    </div>
+  ` : '';
+
+  content.innerHTML = `
+    <div class="level-pane" id="level-pane-${lvIdx}">
+      <h2 class="level-heading">${LEVELS[lvIdx].icon} ${LEVELS[lvIdx].name}</h2>
+
+      <!-- Analogy callout (orange) — always present -->
+      <div class="analogy-box">
+        <div class="analogy-label">🔴 ANALOGY</div>
+        <p>${lv.analogy}</p>
+      </div>
+
+      <!-- Main body text -->
+      <div class="level-body">${lv.body}</div>
+
+      ${calloutEl}
+      ${codeBlock}
+      ${linkEl}
+    </div>
+
+    <!-- Quiz rendered at Expert level (index 4) -->
+    ${lvIdx === 4 ? renderQuizHTML(ch, chIndex) : ''}
+  `;
+
+  // Wire up copy buttons
+  content.querySelectorAll('.copy-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const code = decodeURIComponent(btn.dataset.code);
+      navigator.clipboard.writeText(code).then(() => {
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy`; }, 2000);
+      });
+    });
+  });
+
+  // Wire up quiz at Expert level
+  if (lvIdx === 4) wireQuiz(ch, chIndex);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   7. LEVEL NAVIGATION
+   ══════════════════════════════════════════════════════════════════════ */
+
+/** Update Prev / Next level button states. */
+function updateLevelNavButtons(chIndex, lvIdx) {
+  const prog    = getChapterProgress(window.COURSE_DATA[chIndex].id);
+  const prevBtn = document.getElementById('btn-prev-level');
+  const nextBtn = document.getElementById('btn-next-level');
+
+  if (!prevBtn || !nextBtn) return;
+
+  // Prev button
+  if (lvIdx === 0) {
+    prevBtn.textContent = '← All chapters';
+    prevBtn.onclick = () => {
+      transitionOut(() => showHome());
+    };
+  } else {
+    prevBtn.textContent = '← Previous';
+    prevBtn.onclick = () => switchLevel(chIndex, lvIdx - 1);
+  }
+
+  // Next button
+  if (lvIdx < 4) {
+    nextBtn.textContent = 'Next level →';
+    nextBtn.style.display = '';
+    // Only show if this level has been "unlocked" (user can advance)
+    nextBtn.onclick = () => {
+      // Mark current level as completed, unlock next
+      advanceLevelProgress(window.COURSE_DATA[chIndex].id, lvIdx + 1);
+      switchLevel(chIndex, lvIdx + 1);
+    };
+  } else {
+    // Expert level: hide next (quiz completion drives progress)
+    nextBtn.style.display = 'none';
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   8. QUIZ LOGIC
+   ══════════════════════════════════════════════════════════════════════
+   The quiz has 3 questions per chapter.
+   Each question has 4 options; one correct answer.
+   Submitting shows: correct/wrong highlight + explanation for each question.
+   Passing (all correct) marks the chapter as fully completed (progress = 5).
+   ══════════════════════════════════════════════════════════════════════ */
+
+/** Build the quiz HTML string (inserted at Expert level). */
+function renderQuizHTML(ch, chIndex) {
+  const prog = getChapterProgress(ch.id);
+  const alreadyPassed = prog >= 5;
+
+  const questionsHTML = ch.quiz.map((q, qi) => `
+    <div class="quiz-question" id="quiz-q-${qi}">
+      <p class="quiz-q-text">${qi + 1}. ${q.q}</p>
+      <div class="quiz-options" id="quiz-opts-${qi}">
+        ${q.options.map((opt, oi) => `
+          <label class="quiz-option" id="quiz-opt-${qi}-${oi}">
+            <input type="radio" name="quiz-q-${qi}" value="${oi}" ${alreadyPassed ? 'disabled' : ''}/>
+            <span>${opt}</span>
+          </label>
+        `).join('')}
+      </div>
+      <div class="quiz-explanation hidden" id="quiz-exp-${qi}">
+        <strong>💡 ${q.explain}</strong>
+      </div>
+    </div>
+  `).join('');
+
+  return `
+    <div class="quiz-block" id="chapter-quiz">
+      <div class="quiz-header">
+        <span class="quiz-star">⭐</span>
+        <div>
+          <h3>Checkpoint — ${ch.title}</h3>
+          <p>Answer all 3 correctly to complete this chapter. Explanations appear for every answer.</p>
+        </div>
+      </div>
+      ${alreadyPassed ? '<div class="quiz-passed-banner">✅ You\'ve passed this chapter\'s checkpoint!</div>' : ''}
+      <div class="quiz-questions">${questionsHTML}</div>
+      ${alreadyPassed ? '' : `
+        <button class="quiz-submit-btn" id="quiz-submit">Check my answers</button>
+        <div id="quiz-result" class="quiz-result hidden"></div>
+      `}
+    </div>
+  `;
+}
+
+/** Wire up quiz interactivity after it's rendered in the DOM. */
+function wireQuiz(ch, chIndex) {
+  const submitBtn = document.getElementById('quiz-submit');
+  if (!submitBtn) return;  // already passed — no submit button
+
+  submitBtn.addEventListener('click', () => {
+    if (quizSubmitted) return;
+
+    // Collect selected answers
+    const answers = {};
+    ch.quiz.forEach((_, qi) => {
+      const sel = document.querySelector(`input[name="quiz-q-${qi}"]:checked`);
+      if (sel) answers[qi] = parseInt(sel.value, 10);
+    });
+
+    // Require all answered
+    if (Object.keys(answers).length < ch.quiz.length) {
+      const result = document.getElementById('quiz-result');
+      result.className = 'quiz-result error';
+      result.textContent = 'Please answer all questions before submitting.';
+      return;
+    }
+
+    quizSubmitted = true;
+    let correctCount = 0;
+
+    ch.quiz.forEach((q, qi) => {
+      const selected = answers[qi];
+      const correct  = q.answer;
+      const isRight  = selected === correct;
+      if (isRight) correctCount++;
+
+      // Highlight options
+      document.querySelectorAll(`#quiz-opts-${qi} .quiz-option`).forEach((label, oi) => {
+        label.querySelector('input').disabled = true;
+        if (oi === correct) label.classList.add('correct');
+        else if (oi === selected && !isRight) label.classList.add('wrong');
+      });
+
+      // Show explanation
+      const exp = document.getElementById(`quiz-exp-${qi}`);
+      if (exp) exp.classList.remove('hidden');
+    });
+
+    // Show result
+    const result = document.getElementById('quiz-result');
+    const passed = correctCount === ch.quiz.length;
+
+    if (passed) {
+      result.className = 'quiz-result pass';
+      result.innerHTML = `🎉 Perfect score! Chapter complete. <button class="quiz-next-ch-btn" id="quiz-next-ch">→ Next chapter</button>`;
+      advanceLevelProgress(ch.id, 5);  // Mark as fully completed
+      renderLevelTabs(ch, chIndex);    // Re-render tabs to show completion
+      renderChapterCards();            // Update home grid
+
+      // Wire next chapter button
+      setTimeout(() => {
+        const nextCh = document.getElementById('quiz-next-ch');
+        if (nextCh) {
+          nextCh.addEventListener('click', () => {
+            const nextIdx = chIndex + 1;
+            if (nextIdx < window.COURSE_DATA.length) {
+              transitionOut(() => showChapter(nextIdx));
+            } else {
+              transitionOut(() => showHome());
+            }
+          });
+        }
+      }, 0);
+    } else {
+      result.className = 'quiz-result fail';
+      result.innerHTML = `${correctCount}/${ch.quiz.length} correct — review the explanations above and try again.`;
+      // Re-enable submit after 2s for retry
+      setTimeout(() => {
+        quizSubmitted = false;
+        submitBtn.textContent = 'Try again';
+        // Reset radio buttons
+        ch.quiz.forEach((_, qi) => {
+          document.querySelectorAll(`#quiz-opts-${qi} input`).forEach(inp => inp.disabled = false);
+          const opts = document.querySelectorAll(`#quiz-opts-${qi} .quiz-option`);
+          opts.forEach(l => { l.classList.remove('correct', 'wrong'); });
+          const exp = document.getElementById(`quiz-exp-${qi}`);
+          if (exp) exp.classList.add('hidden');
+        });
+      }, 2000);
+    }
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   9. PAGE TRANSITION
+   ══════════════════════════════════════════════════════════════════════ */
 const overlay = document.getElementById('pageTransition');
 
-function triggerTransition(callback) {
+function transitionOut(callback) {
   overlay.classList.add('active');
   setTimeout(() => {
     callback();
     setTimeout(() => overlay.classList.remove('active'), 300);
-  }, 280);
+  }, 250);
 }
 
-/* ════════════════════════════════════════════════════════════════════════
-   3. Navbar + Scroll Spy
-   ════════════════════════════════════════════════════════════════════════ */
-const navbar = document.getElementById('navbar');
-const navLinks = document.querySelectorAll('.nav-link');
-const sections = document.querySelectorAll('.section');
+/* ══════════════════════════════════════════════════════════════════════
+   10. JEV ANALYSIS RENDER (home page, no API key)
+   ══════════════════════════════════════════════════════════════════════
+   Renders the 8 score cards from PRECOMPUTED_JEV.
+   No API key required — scores are baked in.
+   ══════════════════════════════════════════════════════════════════════ */
 
-// Navbar shadow on scroll
-window.addEventListener('scroll', () => {
-  navbar.classList.toggle('scrolled', window.scrollY > 40);
-});
-
-// Intersection observer for section reveal + nav active state
-const sectionObserver = new IntersectionObserver(
-  (entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        entry.target.classList.add('visible');
-        const id = entry.target.id;
-        navLinks.forEach(l => l.classList.toggle('active', l.dataset.page === id));
-      }
-    });
-  },
-  { threshold: 0.15 }
-);
-sections.forEach(s => sectionObserver.observe(s));
-
-// Smooth scroll for CTA / nav links
-document.querySelectorAll('[data-scroll], .nav-link').forEach(el => {
-  el.addEventListener('click', e => {
-    const target = el.dataset.scroll || el.dataset.page;
-    if (!target) return;
-    const dest = document.getElementById(target);
-    if (!dest) return;
-    e.preventDefault();
-    triggerTransition(() => dest.scrollIntoView({ behavior: 'smooth', block: 'start' }));
-  });
-});
-
-/* ════════════════════════════════════════════════════════════════════════
-   4. Result bar animation
-   ════════════════════════════════════════════════════════════════════════ */
-const barObserver = new IntersectionObserver(entries => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      entry.target.querySelectorAll('.result-bar-fill').forEach(bar => {
-        bar.style.width = bar.style.width; // trigger reflow
-      });
-    }
-  });
-}, { threshold: 0.3 });
-document.querySelectorAll('.results-section').forEach(s => barObserver.observe(s));
-
-/* ════════════════════════════════════════════════════════════════════════
-   5. TypeSafe Jev Analysis
-   ════════════════════════════════════════════════════════════════════════ */
-
-/**
- * Chapter metadata — each chapter is evaluated by Jev against:
- *   - relevance_to_topic   (Score, 0–3)
- *   - production_readiness (Score, 0–3)
- *   - industry_fit         (Noul)
- */
-const CHAPTERS = [
-  {
-    id: 'ch01',
-    num: '01',
-    icon: '🔬',
-    title: 'Threat Modeling & NLP Classification',
-    description: `OWASP Top 10 for LLMs × MITRE ATLAS taxonomy. Baseline signature scanner 
-      running in <0.26ms. N-gram classifier with zero external dependencies. 
-      Covers prompt injection, jailbreaks, system prompt extraction, credential harvesting.`,
-    technologies: 'Python, NLP, OWASP, MITRE ATLAS, n-gram, regex scanning',
-  },
-  {
-    id: 'ch02',
-    num: '02',
-    icon: '🧠',
-    title: 'PyTorch & Transformer Fine-Tuning',
-    description: `LoRA PEFT adapter with rank decomposition math. 32% parameter reduction. 
-      Stratified train/val/test splits. Adversarial mutation generator. 
-      Hugging Face Transformers integration. Error analysis and confusion matrices.`,
-    technologies: 'PyTorch, HuggingFace Transformers, LoRA, PEFT, scikit-learn',
-  },
-  {
-    id: 'ch03',
-    num: '03',
-    icon: '🔒',
-    title: 'DLP, PII & Secret Redaction',
-    description: `Shannon entropy scanner for AWS/OpenAI/Anthropic API keys. HMAC-salted 
-      pseudonym replacement. GDPR, HIPAA, DPDP Act 2023 compliant. 
-      Aadhaar, PAN, SSN, email, phone detection via regex.`,
-    technologies: 'Python, regex, Shannon entropy, HMAC, GDPR, HIPAA, DLP, PII',
-  },
-  {
-    id: 'ch04',
-    num: '04',
-    icon: '⚡',
-    title: 'Low-Latency ONNX Model Serving',
-    description: `INT8 dynamic quantization yielding 4× memory reduction. P95 latency 0.071ms local, 
-      4.2ms ONNX. Sub-15ms HTTP SLA. ONNX export with dynamic axes. FastAPI serving daemon. 
-      Benchmark harness with P50/P95/P99 percentiles.`,
-    technologies: 'ONNX Runtime, INT8, quantization, FastAPI, Python, latency benchmarking',
-  },
-  {
-    id: 'ch05',
-    num: '05',
-    icon: '🦫',
-    title: 'Go Inline Security Gateway',
-    description: `Concurrent race-free HTTP reverse proxy in Go 1.22+. Multi-tier policy engine 
-      (Allow, Block, Quarantine, Audit). Prompt extraction for OpenAI JSON format. 
-      6/6 tests with Go race detector. sub-millisecond policy check.`,
-    technologies: 'Go 1.22, net/http, reverse proxy, policy engine, concurrency, race detector',
-  },
-  {
-    id: 'ch06',
-    num: '06',
-    icon: '🎯',
-    title: 'Adversarial Evaluation Discipline',
-    description: `Evasion attack generator: Cyrillic/Greek homoglyphs, zero-width space injection, 
-      leetspeak, base64 smuggling. Benchmark harness with ROC-AUC 1.00. 
-      Dataset design, error analysis, adversarial testing discipline.`,
-    technologies: 'Python, adversarial ML, ROC-AUC, homoglyphs, evasion attacks, evaluation',
-  },
-  {
-    id: 'ch07',
-    num: '07',
-    icon: '☸️',
-    title: 'Containerization & Kubernetes',
-    description: `Multi-stage Docker builds. Distroless Go image <15MB. Non-root Python model server. 
-      Kubernetes Deployment, ClusterIP Service, HPA (3–20 replicas), 
-      readiness/liveness probes, security contexts.`,
-    technologies: 'Docker, Kubernetes, HPA, distroless, multi-stage build, security context',
-  },
-  {
-    id: 'ch08',
-    num: '08',
-    icon: '🤖',
-    title: 'AI-First Engineering Playbook',
-    description: `Agentic red-teamer using TypeSafe Jev & LLM agent loops. AST code auditor 
-      checking for hardcoded credentials, ReDoS, exception suppression. 
-      Claude Code and Antigravity IDE as force multipliers.`,
-    technologies: 'TypeSafe Jev, Claude Code, AST, agentic workflows, AI-first engineering',
-  },
-];
-
-const TOPICS = {
-  ml_security: {
-    label: 'ML Security & Threat Detection',
-    description: `Building and deploying ML models for security use cases: threat classification, 
-      adversarial robustness, prompt injection detection, NLP-based security, DLP, 
-      ONNX serving, Go gateway, and production ML pipelines.`,
-  },
-  llm_engineering: {
-    label: 'LLM Engineering & Agentic Systems',
-    description: `Building production LLM pipelines: fine-tuning, serving, guardrails, 
-      agentic loops, prompt injection defense, evaluation, and AI-first engineering workflows.`,
-  },
-  backend_go: {
-    label: 'Senior Backend Engineering (Go)',
-    description: `Senior backend engineering in Go: concurrent HTTP servers, reverse proxies, 
-      policy engines, API design, performance benchmarking, Docker, Kubernetes, microservices.`,
-  },
-  mlops: {
-    label: 'MLOps & Production ML',
-    description: `Production ML deployment: model serving, quantization, containerization, 
-      Kubernetes scaling, CI/CD, monitoring, latency optimization, Docker, cloud infrastructure.`,
-  },
-};
-
-// ── State ──────────────────────────────────────────────────────────────
-let jevApiKey = localStorage.getItem('jev_api_key') || '';
-let currentTopic = 'ml_security';
-let isAnalyzing = false;
-let analysisResults = {}; // { [chId]: { score, confidence, probabilities, noul } }
-
-// ── DOM Refs ───────────────────────────────────────────────────────────
-const jevSection   = document.getElementById('jev-analysis');
-const jevGate      = document.getElementById('jev-gate');
-const jevKeyInput  = document.getElementById('jev-key-input');
-const jevRunBtn    = document.getElementById('jev-run-btn');
-const jevPanel     = document.getElementById('jev-panel');
-const jevLoading   = document.getElementById('jev-loading');
-const jevResults   = document.getElementById('jev-results');
-const jevTopicSel  = document.getElementById('jev-topic-select');
-const jevRerunBtn  = document.getElementById('jev-rerun-btn');
-const jevSummary   = document.getElementById('jev-summary');
-
-// ── Gate logic ─────────────────────────────────────────────────────────
-function showGate() {
-  jevGate.classList.remove('hidden');
-  jevPanel.classList.add('hidden');
-  if (jevApiKey) jevKeyInput.value = jevApiKey;
+/** Map composite score (0-100) to an HSL colour string. */
+function jevColor(score) {
+  if (score >= 75) return 'hsl(142,80%,55%)';   // green
+  if (score >= 55) return 'hsl(186,100%,55%)';   // cyan
+  if (score >= 35) return 'hsl(28,95%,60%)';     // orange
+  return 'hsl(0,80%,55%)';                        // red
 }
 
-function showPanel() {
-  jevGate.classList.add('hidden');
-  jevPanel.classList.remove('hidden');
-}
-
-jevRunBtn?.addEventListener('click', () => {
-  const key = jevKeyInput.value.trim();
-  if (!key) { jevKeyInput.focus(); return; }
-  jevApiKey = key;
-  localStorage.setItem('jev_api_key', key);
-  showPanel();
-  runAnalysis();
-});
-
-jevKeyInput?.addEventListener('keydown', e => {
-  if (e.key === 'Enter') jevRunBtn?.click();
-});
-
-jevRerunBtn?.addEventListener('click', () => {
-  currentTopic = jevTopicSel.value;
-  runAnalysis();
-});
-
-jevTopicSel?.addEventListener('change', () => {
-  currentTopic = jevTopicSel.value;
-});
-
-/* ── TypeSafe Jev API call (single chapter) ───────────────────────────
- *
- * We send one request per chapter with THREE questions in parallel (fan-out):
- *
- *   relevance_to_topic  → Score (0-3)
- *     How relevant is this chapter to the selected engineering topic?
- *
- *   production_readiness → Score (0-3)
- *     How production-ready is the code / knowledge in this chapter?
- *
- *   industry_fit → Noul
- *     Would a senior engineer hiring for this role consider this chapter
- *     directly relevant on a resume or in an interview?
- */
-async function askJev(chapter, topic) {
-  const topicInfo = TOPICS[topic];
-
-  const body = {
-    model: 'jev-latest',
-    state: {
-      chapter_title: chapter.title,
-      chapter_description: chapter.description,
-      chapter_technologies: chapter.technologies,
-      hiring_topic: topicInfo.label,
-      hiring_description: topicInfo.description,
-    },
-    questions: {
-      relevance_to_topic: {
-        type: 'score',
-        instructions: 'How relevant is this curriculum chapter to the specified engineering hiring topic?',
-        criteria: [
-          'Completely unrelated — different domain, no overlap with the hiring topic',
-          'Adjacent — some shared concepts but not the core focus of the hiring topic',
-          'Directly relevant — covers key skills or technologies from the hiring topic',
-          'Core strength — this chapter is a flagship demonstration of the hiring topic\'s most critical requirements',
-        ],
-      },
-      production_readiness: {
-        type: 'score',
-        instructions: 'How production-ready is the knowledge and code demonstrated in this chapter?',
-        criteria: [
-          'Toy / tutorial level — educational but not representative of production code',
-          'Prototype quality — shows the concept but missing production concerns (error handling, scale, observability)',
-          'Production-grade — covers real production concerns: benchmarks, error handling, tests, deployment',
-          'Industry-leading — goes beyond standard production practices with advanced techniques (quantization, race detectors, adversarial evals, distroless images)',
-        ],
-      },
-      industry_fit: {
-        type: 'noul',
-        instructions: 'Would a senior engineering hiring manager consider this chapter directly impactful on a candidate\'s application for the specified role?',
-      },
-    },
-  };
-
-  const response = await fetch('https://api.typesafe.ai/v1/systemone', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${jevApiKey}`,
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Jev API error ${response.status}: ${text}`);
-  }
-
-  const data = await response.json();
-  return data.answers;
-}
-
-/* ── Composite score: weighted average of relevance + readiness ──────── */
-function compositeScore(answers) {
-  // relevance 0-3 → 0-100, production_readiness 0-3 → 0-100
-  // weights: relevance 60%, readiness 40%
-  const rel  = (answers.relevance_to_topic.score  / 3) * 100;
-  const prod = (answers.production_readiness.score / 3) * 100;
-  return Math.round(rel * 0.6 + prod * 0.4);
-}
-
-/* ── Render a single scored card ─────────────────────────────────────── */
-function scoreColor(score) {
-  // score is 0-100
-  if (score >= 80) return 'hsl(142,80%,55%)';
-  if (score >= 55) return 'hsl(186,100%,55%)';
-  if (score >= 35) return 'hsl(28,95%,60%)';
-  return 'hsl(0,80%,55%)';
-}
-
-function confidenceClass(c) {
-  if (c >= 0.65) return 'conf-high';
-  if (c >= 0.35) return 'conf-medium';
-  return 'conf-low';
-}
-
-function renderScoreCard(ch, answers) {
-  const card = document.getElementById(`jev-card-${ch.id}`);
-  if (!card) return;
-
-  const comp  = compositeScore(answers);
-  const rel   = answers.relevance_to_topic;
-  const prod  = answers.production_readiness;
-  const noul  = answers.industry_fit;
-  const color = scoreColor(comp);
-  const relConf = rel.confidence;
-  const avgConf = ((relConf + prod.confidence) / 2);
-
-  // Ring: dashoffset = circumference - (score/100) * circumference
-  const circ = 163;
-  const offset = circ - (comp / 100) * circ;
-
-  // Probability bars for relevance
-  const relProbs = Object.entries(rel.probabilities)
-    .map(([k, v]) => ({ level: parseInt(k), pct: Math.round(v * 100) }));
-  const relLevels = ['Unrelated', 'Adjacent', 'Direct', 'Core'];
-
-  const probBarsHTML = relProbs.map(p => `
-    <div class="jev-prob-row">
-      <span class="jev-prob-label">${relLevels[p.level] || p.level}</span>
-      <div class="jev-prob-bar-wrap">
-        <div class="jev-prob-bar-fill" style="width:${p.pct}%;background:${color}"></div>
-      </div>
-      <span class="jev-prob-pct">${p.pct}%</span>
-    </div>
-  `).join('');
-
-  const noulYes  = noul.probability_yes ?? noul.probability ?? noul.yes ?? 0.5;
-  const noulPct  = Math.round(noulYes * 100);
-  const noulIsYes = noulYes >= 0.5;
-
-  card.innerHTML = `
-    <div class="jev-card-top">
-      <div class="jev-card-title">
-        <span class="jev-card-icon">${ch.icon}</span>
-        <div>
-          <div class="jev-card-num">CH${ch.num}</div>
-          <h4>${ch.title}</h4>
-        </div>
-      </div>
-      <div class="jev-score-ring-wrap">
-        <svg class="jev-score-ring" width="64" height="64" viewBox="0 0 64 64">
-          <circle class="jev-ring-bg" cx="32" cy="32" r="26"/>
-          <circle class="jev-ring-fill" cx="32" cy="32" r="26"
-            stroke="${color}"
-            style="stroke-dashoffset:${offset}"/>
-        </svg>
-        <div class="jev-ring-label">
-          <span class="jev-ring-score">${comp}</span>
-          <span class="jev-ring-max">/100</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="jev-prob-bars">${probBarsHTML}</div>
-
-    <div class="jev-confidence-row">
-      <span class="jev-confidence-label">Jev Confidence</span>
-      <span class="jev-confidence-pill ${confidenceClass(avgConf)}">${(avgConf * 100).toFixed(0)}%</span>
-    </div>
-
-    <div class="jev-noul-verdict ${noulIsYes ? 'yes' : 'no'}">
-      <span class="noul-icon">${noulIsYes ? '✅' : '⚠️'}</span>
-      <span>${noulIsYes ? 'Resume-impactful for this role' : 'Less central to this role'}</span>
-      <span class="noul-prob">p(yes)=${noulPct}%</span>
-    </div>
-  `;
-
-  card.classList.add('scored');
-  return comp;
-}
-
-/* ── Render skeleton cards ───────────────────────────────────────────── */
-function renderSkeletons() {
-  const grid = document.getElementById('jev-scores-grid');
-  if (!grid) return;
-  grid.innerHTML = CHAPTERS.map(ch => `
-    <div class="jev-score-card jev-skeleton" id="jev-card-${ch.id}">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
-        <div style="flex:1">
-          <div class="skeleton-line short" style="margin-bottom:6px"></div>
-          <div class="skeleton-line medium"></div>
-        </div>
-        <div class="skeleton-ring"></div>
-      </div>
-      <div class="skeleton-line"></div>
-      <div class="skeleton-line medium"></div>
-      <div class="skeleton-line short"></div>
-    </div>
-  `).join('');
-}
-
-/* ── Main analysis runner ────────────────────────────────────────────── */
-async function runAnalysis() {
-  if (isAnalyzing) return;
-  isAnalyzing = true;
-
-  // Reset UI
-  jevResults.classList.remove('hidden');
-  jevSummary.classList.add('hidden');
-  document.getElementById('jev-loading-topic').textContent = TOPICS[currentTopic]?.label || currentTopic;
-  jevLoading.classList.remove('hidden');
-
-  // Show skeleton grid immediately
-  renderSkeletons();
-
-  jevLoading.classList.add('hidden');
-
-  // Fan-out: analyze all chapters in parallel (Jev is fast, batch them)
-  const scores = [];
-  const errors = [];
-
-  await Promise.all(CHAPTERS.map(async (ch, idx) => {
-    try {
-      // Stagger requests slightly to avoid rate limits
-      await new Promise(r => setTimeout(r, idx * 120));
-
-      const card = document.getElementById(`jev-card-${ch.id}`);
-      if (card) {
-        // Show "analyzing..." pulse while loading
-        card.style.opacity = '0.7';
-        card.style.borderColor = 'rgba(139,92,246,0.35)';
-      }
-
-      const answers = await askJev(ch, currentTopic);
-      analysisResults[ch.id] = answers;
-
-      // Remove skeleton class and render real data
-      const el = document.getElementById(`jev-card-${ch.id}`);
-      if (el) {
-        el.classList.remove('jev-skeleton');
-        el.style.opacity = '';
-        el.style.borderColor = '';
-      }
-
-      const comp = renderScoreCard(ch, answers);
-      scores.push(comp);
-    } catch (err) {
-      console.error(`Jev error for ${ch.id}:`, err);
-      errors.push({ ch, err });
-      renderErrorCard(ch, err.message);
-    }
-  }));
-
-  // Overall summary
-  if (scores.length > 0) {
-    renderSummary(scores, currentTopic);
-  }
-
-  isAnalyzing = false;
-}
-
-function renderErrorCard(ch, msg) {
-  const card = document.getElementById(`jev-card-${ch.id}`);
-  if (!card) return;
-  card.classList.remove('jev-skeleton');
-  card.innerHTML = `
-    <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px">
-      <span style="font-size:1.3rem">${ch.icon}</span>
-      <h4 style="font-size:0.88rem;font-weight:700">${ch.title}</h4>
-    </div>
-    <div style="font-size:0.78rem;color:hsl(0,80%,65%);background:rgba(255,77,77,0.08);
-                border:1px solid rgba(255,77,77,0.2);border-radius:8px;padding:10px 12px">
-      ⚠️ ${msg.includes('401') ? 'Invalid API key. Check your TypeSafe key.' : msg.slice(0, 120)}
-    </div>
-  `;
-}
-
-function renderSummary(scores, topic) {
-  const avg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
-  const max = Math.max(...scores);
-  const topChapter = CHAPTERS[scores.indexOf(max)];
-  const topicLabel = TOPICS[topic]?.label || topic;
-
-  const verdictText = avg >= 80
-    ? `This curriculum is an <strong>exceptional match</strong> for the ${topicLabel} role. Every chapter directly reinforces the core competencies required.`
-    : avg >= 60
-    ? `This curriculum is a <strong>strong match</strong> for ${topicLabel}. Most chapters are highly relevant, with a few providing supporting context.`
-    : avg >= 40
-    ? `This curriculum has <strong>moderate relevance</strong> to ${topicLabel}. Key chapters align well; some are adjacent.`
-    : `This curriculum has <strong>some overlap</strong> with ${topicLabel} but the primary focus is elsewhere.`;
-
-  document.getElementById('jev-summary-num').textContent = avg;
-  document.getElementById('jev-summary-verdict').innerHTML = verdictText;
-  document.getElementById('jev-summary-best').textContent =
-    `Top chapter: ${topChapter.icon} ${topChapter.title} (${max}/100)`;
-
-  jevSummary.classList.remove('hidden');
-}
-
-/* ── Render pre-computed results (no API key required) ────────────────── */
-function renderPrecomputed() {
+/** Render all 8 Jev score cards into #jev-scores-grid. */
+function renderJevCards() {
   const grid = document.getElementById('jev-scores-grid');
   if (!grid) return;
 
-  // Build answer-like objects from pre-computed data for each chapter
-  CHAPTERS.forEach(ch => {
-    const data = PRECOMPUTED_RESULTS.chapters.find(c => c.id === ch.id);
-    if (!data) return;
+  grid.innerHTML = window.COURSE_DATA.map(ch => {
+    const data  = PRECOMPUTED_JEV.chapters.find(c => c.id === ch.id);
+    if (!data) return '';
 
-    // Synthesise an answers object matching the live API shape
-    const answers = {
-      relevance_to_topic: {
-        score: data.relevance_score,
-        confidence: data.relevance_confidence,
-        probabilities: data.relevance_probabilities,
-      },
-      production_readiness: {
-        score: data.readiness_score,
-        confidence: data.readiness_confidence,
-        probabilities: { '0': 0, '1': 0, '2': 1 }, // simplified for readiness display
-      },
-      industry_fit: {
-        probability_yes: data.industry_fit_probability,
-      },
-    };
+    const color  = jevColor(data.composite);
+    const circ   = 163;
+    const offset = circ - (data.composite / 100) * circ;
 
-    analysisResults[ch.id] = answers;
-  });
+    // Probability bars for relevance levels
+    const levels = ['Unrelated', 'Adjacent', 'Direct', 'Core'];
+    const probBars = Object.entries(data.relevance_probabilities)
+      .sort((a, b) => +a[0] - +b[0])
+      .map(([k, v]) => `
+        <div class="jev-prob-row">
+          <span class="jev-prob-label">${levels[+k]}</span>
+          <div class="jev-prob-bar-wrap">
+            <div class="jev-prob-bar-fill" style="width:${Math.round(v*100)}%;background:${color}"></div>
+          </div>
+          <span class="jev-prob-pct">${Math.round(v*100)}%</span>
+        </div>
+      `).join('');
 
-  // Render skeleton first then fill
-  renderSkeletons();
-  CHAPTERS.forEach(ch => {
-    const data  = PRECOMPUTED_RESULTS.chapters.find(c => c.id === ch.id);
-    const el    = document.getElementById(`jev-card-${ch.id}`);
-    const answers = analysisResults[ch.id];
-    if (!el || !answers) return;
-    el.classList.remove('jev-skeleton');
-    renderScoreCard(ch, answers);
-  });
+    const avgConf = ((data.relevance_confidence + data.readiness_confidence) / 2);
+    const confClass = avgConf >= 0.65 ? 'conf-high' : (avgConf >= 0.35 ? 'conf-medium' : 'conf-low');
+    const noulYes = data.industry_fit_probability >= 0.5;
 
-  const scores = PRECOMPUTED_RESULTS.chapters.map(c => c.composite);
-  renderSummary(scores, 'ml_security');
-
-  // Show "pre-computed" notice
-  const notice = document.getElementById('jev-precomputed-notice');
-  if (notice) notice.classList.remove('hidden');
+    return `
+      <div class="jev-score-card scored" id="jev-card-${ch.id}">
+        <div class="jev-card-top">
+          <div class="jev-card-title">
+            <span class="jev-card-icon">${ch.icon}</span>
+            <div>
+              <div class="jev-card-num">CH${ch.num}</div>
+              <h4>${ch.title}</h4>
+            </div>
+          </div>
+          <div class="jev-score-ring-wrap">
+            <svg class="jev-score-ring" width="64" height="64" viewBox="0 0 64 64">
+              <circle class="jev-ring-bg" cx="32" cy="32" r="26"/>
+              <circle class="jev-ring-fill" cx="32" cy="32" r="26"
+                stroke="${color}" style="stroke-dashoffset:${offset}"/>
+            </svg>
+            <div class="jev-ring-label">
+              <span class="jev-ring-score">${data.composite}</span>
+              <span class="jev-ring-max">/100</span>
+            </div>
+          </div>
+        </div>
+        <div class="jev-prob-bars">${probBars}</div>
+        <div class="jev-confidence-row">
+          <span class="jev-confidence-label">Confidence</span>
+          <span class="jev-confidence-pill ${confClass}">${Math.round(avgConf*100)}%</span>
+        </div>
+        <div class="jev-noul-verdict ${noulYes ? 'yes' : 'no'}">
+          <span class="noul-icon">${noulYes ? '✅' : '⚠️'}</span>
+          <span>${noulYes ? 'Resume-impactful' : 'Less central'}</span>
+          <span class="noul-prob">p(yes)=${Math.round(data.industry_fit_probability*100)}%</span>
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
-/* ════════════════════════════════════════════════════════════════════════
-   6. Boot
-   ════════════════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════════════
+   11. UTILITIES
+   ══════════════════════════════════════════════════════════════════════ */
+
+/** Escape HTML special characters for safe insertion into <pre><code>. */
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   12. BOOT
+   ══════════════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
-  // Start ComfyUI node canvas
+
+  // Start ComfyUI animated canvas background
   const canvas = document.getElementById('nodeCanvas');
   if (canvas) {
     const graph = new NodeGraph(canvas);
     graph.start();
   }
 
-  // Section reveal — trigger for already-visible sections
-  sections.forEach(s => {
-    if (s.getBoundingClientRect().top < window.innerHeight) {
-      s.classList.add('visible');
-    }
+  // Navbar logo → home
+  document.getElementById('nav-home-btn')?.addEventListener('click', () => {
+    transitionOut(() => showHome());
   });
 
-  // Jev gate / panel init
-  // Always show the panel with pre-computed results; API key enables live re-run
-  showPanel();
-  renderPrecomputed();
-
-  if (jevApiKey) {
-    // Auto-run live analysis if key already saved
-    runAnalysis();
-  }
-
-  // Populate topic select
-  if (jevTopicSel) {
-    Object.entries(TOPICS).forEach(([key, t]) => {
-      const opt = document.createElement('option');
-      opt.value = key;
-      opt.textContent = t.label;
-      if (key === currentTopic) opt.selected = true;
-      jevTopicSel.appendChild(opt);
-    });
-  }
-
-  // Hamburger
-  const ham = document.getElementById('hamburger');
-  const navLinksEl = document.querySelector('.nav-links');
-  ham?.addEventListener('click', () => {
-    navLinksEl?.classList.toggle('open');
+  // Breadcrumb home link
+  document.getElementById('breadcrumb-home')?.addEventListener('click', () => {
+    transitionOut(() => showHome());
   });
+
+  // Render home content
+  renderChapterCards();
+  renderJevCards();
+  updateOverallProgress();
+
+  // Show home view on boot
+  showHome();
 });
