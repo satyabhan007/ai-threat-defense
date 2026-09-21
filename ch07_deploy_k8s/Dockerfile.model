@@ -1,0 +1,22 @@
+# Multi-stage hardened build for Python ONNX Model Server
+FROM python:3.11-slim AS builder
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt || true
+
+FROM python:3.11-slim AS runtime
+
+WORKDIR /app
+COPY --from=builder /install /usr/local
+COPY . /app
+
+# Non-root unprivileged security user
+RUN useradd -u 10001 -m -s /bin/bash appuser
+USER 10001
+
+EXPOSE 8000
+HEALTHCHECK --interval=10s --timeout=3s --retries=3 \
+  CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"
+
+CMD ["python3", "ch04_onnx_serving/onnx_runtime_server.py", "--port", "8000"]

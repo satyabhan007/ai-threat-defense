@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  threat-gateway:
+    build:
+      context: ..
+      dockerfile: ch07_deploy_k8s/Dockerfile.gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - UPSTREAM_URL=http://model-server:8000
+    depends_on:
+      - model-server
+    restart: always
+
+  model-server:
+    build:
+      context: ..
+      dockerfile: ch07_deploy_k8s/Dockerfile.model
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+    restart: always
