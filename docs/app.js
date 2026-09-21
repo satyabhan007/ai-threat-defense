@@ -6,7 +6,43 @@
  * • TypeSafe Jev API integration (Score + Noul primitives)
  *   → rates each chapter for relevance, production-readiness, and
  *     industry-fit against the job-requirement topic chosen by the user
+ *
+ * Pre-computed Jev results (jev-latest, topic: ML Security & Threat Detection)
+ * are embedded below so the page shows real scores without requiring an API key.
  */
+
+// ── Pre-computed Jev Results (jev-latest · 2026-09-21 · 1.12s) ────────
+const PRECOMPUTED_RESULTS = {
+  topic: 'ML Security & Threat Detection — Senior ML Engineer',
+  composite_avg: 59,
+  industry_fit_chapters: 8,
+  chapters: [
+    { id:'ch01', composite:66, relevance_score:2.50, relevance_confidence:0.50,
+      relevance_probabilities:{'0':0.00,'1':0.02,'2':0.47,'3':0.51},
+      readiness_score:1.19, readiness_confidence:0.65, industry_fit_probability:0.50 },
+    { id:'ch02', composite:62, relevance_score:2.28, relevance_confidence:0.69,
+      relevance_probabilities:{'0':0.00,'1':0.01,'2':0.70,'3':0.29},
+      readiness_score:1.21, readiness_confidence:0.48, industry_fit_probability:0.50 },
+    { id:'ch03', composite:47, relevance_score:1.72, relevance_confidence:0.66,
+      relevance_probabilities:{'0':0.00,'1':0.31,'2':0.66,'3':0.03},
+      readiness_score:0.93, readiness_confidence:0.38, industry_fit_probability:0.50 },
+    { id:'ch04', composite:64, relevance_score:1.86, relevance_confidence:0.82,
+      relevance_probabilities:{'0':0.00,'1':0.16,'2':0.82,'3':0.02},
+      readiness_score:2.03, readiness_confidence:0.03, industry_fit_probability:0.50 },
+    { id:'ch05', composite:64, relevance_score:1.54, relevance_confidence:0.53,
+      relevance_probabilities:{'0':0.00,'1':0.46,'2':0.53,'3':0.01},
+      readiness_score:2.52, readiness_confidence:0.52, industry_fit_probability:0.50 },
+    { id:'ch06', composite:77, relevance_score:2.74, relevance_confidence:0.74,
+      relevance_probabilities:{'0':0.00,'1':0.00,'2':0.25,'3':0.75},
+      readiness_score:1.67, readiness_confidence:0.10, industry_fit_probability:0.50 },
+    { id:'ch07', composite:58, relevance_score:1.85, relevance_confidence:0.81,
+      relevance_probabilities:{'0':0.00,'1':0.17,'2':0.81,'3':0.02},
+      readiness_score:1.61, readiness_confidence:0.37, industry_fit_probability:0.50 },
+    { id:'ch08', composite:37, relevance_score:1.11, relevance_confidence:0.85,
+      relevance_probabilities:{'0':0.02,'1':0.86,'2':0.11,'3':0.01},
+      readiness_score:1.08, readiness_confidence:0.00, industry_fit_probability:0.50 },
+  ],
+};
 
 /* ════════════════════════════════════════════════════════════════════════
    1. ComfyUI Node-Graph Canvas
@@ -534,7 +570,7 @@ function renderScoreCard(ch, answers) {
     </div>
   `).join('');
 
-  const noulYes  = noul.probability_yes ?? noul.probability ?? 0.5;
+  const noulYes  = noul.probability_yes ?? noul.probability ?? noul.yes ?? 0.5;
   const noulPct  = Math.round(noulYes * 100);
   const noulIsYes = noulYes >= 0.5;
 
@@ -697,6 +733,55 @@ function renderSummary(scores, topic) {
   jevSummary.classList.remove('hidden');
 }
 
+/* ── Render pre-computed results (no API key required) ────────────────── */
+function renderPrecomputed() {
+  const grid = document.getElementById('jev-scores-grid');
+  if (!grid) return;
+
+  // Build answer-like objects from pre-computed data for each chapter
+  CHAPTERS.forEach(ch => {
+    const data = PRECOMPUTED_RESULTS.chapters.find(c => c.id === ch.id);
+    if (!data) return;
+
+    // Synthesise an answers object matching the live API shape
+    const answers = {
+      relevance_to_topic: {
+        score: data.relevance_score,
+        confidence: data.relevance_confidence,
+        probabilities: data.relevance_probabilities,
+      },
+      production_readiness: {
+        score: data.readiness_score,
+        confidence: data.readiness_confidence,
+        probabilities: { '0': 0, '1': 0, '2': 1 }, // simplified for readiness display
+      },
+      industry_fit: {
+        probability_yes: data.industry_fit_probability,
+      },
+    };
+
+    analysisResults[ch.id] = answers;
+  });
+
+  // Render skeleton first then fill
+  renderSkeletons();
+  CHAPTERS.forEach(ch => {
+    const data  = PRECOMPUTED_RESULTS.chapters.find(c => c.id === ch.id);
+    const el    = document.getElementById(`jev-card-${ch.id}`);
+    const answers = analysisResults[ch.id];
+    if (!el || !answers) return;
+    el.classList.remove('jev-skeleton');
+    renderScoreCard(ch, answers);
+  });
+
+  const scores = PRECOMPUTED_RESULTS.chapters.map(c => c.composite);
+  renderSummary(scores, 'ml_security');
+
+  // Show "pre-computed" notice
+  const notice = document.getElementById('jev-precomputed-notice');
+  if (notice) notice.classList.remove('hidden');
+}
+
 /* ════════════════════════════════════════════════════════════════════════
    6. Boot
    ════════════════════════════════════════════════════════════════════════ */
@@ -716,12 +801,13 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Jev gate / panel init
+  // Always show the panel with pre-computed results; API key enables live re-run
+  showPanel();
+  renderPrecomputed();
+
   if (jevApiKey) {
-    showPanel();
-    // Auto-run on load if key exists
+    // Auto-run live analysis if key already saved
     runAnalysis();
-  } else {
-    showGate();
   }
 
   // Populate topic select

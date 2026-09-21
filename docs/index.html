@@ -443,6 +443,23 @@
           </div>
         </div>
 
+        <!-- Pre-computed notice + live key input -->
+        <div id="jev-precomputed-notice" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+             padding:12px 16px;border-radius:10px;margin-bottom:24px;
+             background:rgba(139,92,246,0.07);border:1px solid rgba(139,92,246,0.2)">
+          <span style="font-size:0.75rem;font-weight:700;letter-spacing:0.05em;
+                color:var(--accent-violet)">⚡ PRE-COMPUTED · jev-latest · 2026-09-21 · 1.12s</span>
+          <span style="font-size:0.75rem;color:var(--text-muted)">Results are real Jev scores. Enter your key to re-run live:</span>
+          <div style="display:flex;gap:8px;margin-left:auto">
+            <input id="jev-key-input" type="password" class="jev-key-input"
+              placeholder="ts-live-xxxxxxxx" autocomplete="off"
+              style="width:200px;font-size:0.78rem;padding:7px 12px"/>
+            <button id="jev-run-btn" class="btn-jev" style="padding:7px 14px;font-size:0.8rem">
+              Run Live
+            </button>
+          </div>
+        </div>
+
         <!-- Loading indicator -->
         <div id="jev-loading" class="jev-loading hidden">
           <div class="jev-spinner"></div>
