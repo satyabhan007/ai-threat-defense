@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Threat Defense — ML Security Engineering Curriculum</title>
+  <meta name="description" content="Production-grade ML security engineering curriculum: PyTorch fine-tuning, ONNX serving, Go gateway, adversarial evals, and Kubernetes — by Satya Bhan." />
+  <meta property="og:title" content="AI Threat Defense Curriculum" />
+  <meta property="og:description" content="8-chapter hands-on curriculum for ML security engineers. Covers LoRA, ONNX, Go, adversarial robustness, and K8s." />
+  <meta property="og:type" content="website" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- ComfyUI-style animated node-graph canvas -->
+  <canvas id="nodeCanvas"></canvas>
+
+  <!-- Page transition overlay -->
+  <div id="pageTransition" class="page-transition"></div>
+
+  <!-- Navigation -->
+  <nav id="navbar" class="navbar">
+    <div class="nav-inner">
+      <a href="#home" class="nav-logo" data-page="home">
+        <span class="logo-shield">🛡️</span>
+        <span class="logo-text">AI<span class="accent">Threat</span>Defense</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="#curriculum" data-page="curriculum" class="nav-link">Curriculum</a></li>
+        <li><a href="#architecture" data-page="architecture" class="nav-link">Architecture</a></li>
+        <li><a href="#results" data-page="results" class="nav-link">Results</a></li>
+        <li><a href="#jev-analysis" data-page="jev-analysis" class="nav-link">Jev Analysis</a></li>
+        <li><a href="https://github.com/satyabhan007/ai-threat-defense" target="_blank" class="nav-cta">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+          View on GitHub
+        </a></li>
+      </ul>
+      <button class="hamburger" id="hamburger" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ─── HERO SECTION ─── -->
+  <section id="home" class="section hero-section active-section">
+    <div class="hero-content">
+      <div class="hero-badge">
+        <span class="badge-dot"></span>
+        Production-Grade ML Security Engineering
+      </div>
+      <h1 class="hero-title">
+        <span class="title-line">Build AI Agents</span>
+        <span class="title-line gradient-text">That Defend Themselves</span>
+      </h1>
+      <p class="hero-subtitle">
+        8 hands-on chapters covering PyTorch fine-tuning, ONNX low-latency serving,
+        Go inline security gateways, adversarial robustness, and Kubernetes deployment.
+      </p>
+      <div class="hero-stats">
+        <div class="stat-card">
+          <span class="stat-number">8</span>
+          <span class="stat-label">Chapters</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-number">0.26ms</span>
+          <span class="stat-label">Inference</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-number">100%</span>
+          <span class="stat-label">Tests Pass</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-number">ROC 1.0</span>
+          <span class="stat-label">AUC Score</span>
+        </div>
+      </div>
+      <div class="hero-actions">
+        <a href="#curriculum" class="btn-primary" data-scroll="curriculum">
+          Explore Curriculum
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+        <a href="https://github.com/satyabhan007/ai-threat-defense" target="_blank" class="btn-secondary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+          Star on GitHub
+        </a>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="terminal-window">
+        <div class="terminal-header">
+          <span class="dot red"></span>
+          <span class="dot yellow"></span>
+          <span class="dot green"></span>
+          <span class="terminal-title">verification_harness.py</span>
+        </div>
+        <div class="terminal-body">
+          <div class="term-line"><span class="term-prefix">$</span> python run_all_tests.py</div>
+          <div class="term-line pass"><span class="term-check">✓</span> ch01: Baseline classifier — 0.26ms</div>
+          <div class="term-line pass"><span class="term-check">✓</span> ch02: LoRA training — 32% param reduction</div>
+          <div class="term-line pass"><span class="term-check">✓</span> ch03: DLP scanner &amp; HMAC redaction</div>
+          <div class="term-line pass"><span class="term-check">✓</span> ch04: INT8 ONNX — P95: 0.071ms</div>
+          <div class="term-line pass"><span class="term-check">✓</span> ch05: Go gateway — race-free 6/6</div>
+          <div class="term-line pass"><span class="term-check">✓</span> ch06: ROC-AUC: 1.00</div>
+          <div class="term-line pass"><span class="term-check">✓</span> ch07: K8s deployment validated</div>
+          <div class="term-line pass"><span class="term-check">✓</span> ch08: AI-first playbook verified</div>
+          <div class="term-line result">🏆 8/8 CHECKS PASSED (100%) in 21.68ms</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── CURRICULUM SECTION ─── -->
+  <section id="curriculum" class="section curriculum-section">
+    <div class="section-inner">
+      <div class="section-header">
+        <span class="section-tag">8 CHAPTERS</span>
+        <h2 class="section-title">Full Curriculum</h2>
+        <p class="section-subtitle">Production code, not toy examples. Every module is tested, benchmarked, and deployable.</p>
+      </div>
+
+      <div class="chapters-grid">
+        <!-- Ch 1 -->
+        <div class="chapter-card" data-chapter="1" id="ch-card-1">
+          <div class="chapter-num">01</div>
+          <div class="chapter-icon">🔬</div>
+          <div class="chapter-content">
+            <h3>Threat Modeling &amp; NLP Classification</h3>
+            <p>OWASP Top 10 for LLMs × MITRE ATLAS taxonomy. Baseline signature scanner running in &lt;0.26ms with zero external deps.</p>
+            <div class="chapter-tags">
+              <span class="tag">Python</span><span class="tag">NLP</span><span class="tag">OWASP</span>
+            </div>
+            <a href="https://github.com/satyabhan007/ai-threat-defense/tree/main/ch01_threat_modeling" target="_blank" class="chapter-link">View Code →</a>
+          </div>
+        </div>
+
+        <!-- Ch 2 -->
+        <div class="chapter-card" data-chapter="2" id="ch-card-2">
+          <div class="chapter-num">02</div>
+          <div class="chapter-icon">🧠</div>
+          <div class="chapter-content">
+            <h3>PyTorch &amp; Transformer Fine-Tuning</h3>
+            <p>LoRA PEFT adapter with rank decomposition math. Stratified train/val/test splits with adversarial mutation generator.</p>
+            <div class="chapter-tags">
+              <span class="tag">PyTorch</span><span class="tag">LoRA</span><span class="tag">HuggingFace</span>
+            </div>
+            <a href="https://github.com/satyabhan007/ai-threat-defense/tree/main/ch02_transformer_finetuning" target="_blank" class="chapter-link">View Code →</a>
+          </div>
+        </div>
+
+        <!-- Ch 3 -->
+        <div class="chapter-card" data-chapter="3" id="ch-card-3">
+          <div class="chapter-num">03</div>
+          <div class="chapter-icon">🔒</div>
+          <div class="chapter-content">
+            <h3>DLP, PII &amp; Secret Redaction</h3>
+            <p>Shannon entropy scanner for API keys (AWS/OpenAI). HMAC-salted pseudonym replacement — GDPR, HIPAA, DPDP Act 2023 compliant.</p>
+            <div class="chapter-tags">
+              <span class="tag">DLP</span><span class="tag">GDPR</span><span class="tag">Security</span>
+            </div>
+            <a href="https://github.com/satyabhan007/ai-threat-defense/tree/main/ch03_dlp_sensitive_data" target="_blank" class="chapter-link">View Code →</a>
+          </div>
+        </div>
+
+        <!-- Ch 4 -->
+        <div class="chapter-card" data-chapter="4" id="ch-card-4">
+          <div class="chapter-num">04</div>
+          <div class="chapter-icon">⚡</div>
+          <div class="chapter-content">
+            <h3>Low-Latency ONNX Model Serving</h3>
+            <p>INT8 dynamic quantization → 4× memory reduction. P95 latency: 0.071ms local / 4.2ms ONNX. Sub-15ms HTTP SLA.</p>
+            <div class="chapter-tags">
+              <span class="tag">ONNX</span><span class="tag">INT8</span><span class="tag">FastAPI</span>
+            </div>
+            <a href="https://github.com/satyabhan007/ai-threat-defense/tree/main/ch04_onnx_serving" target="_blank" class="chapter-link">View Code →</a>
+          </div>
+        </div>
+
+        <!-- Ch 5 -->
+        <div class="chapter-card featured" data-chapter="5" id="ch-card-5">
+          <div class="chapter-num">05</div>
+          <div class="chapter-icon">🦫</div>
+          <div class="chapter-content">
+            <h3>Go Inline Security Gateway</h3>
+            <p>Concurrent race-free HTTP reverse proxy in Go 1.22+. Multi-tier policy engine (Allow / Block / Quarantine / Audit). 6/6 tests with race detector.</p>
+            <div class="chapter-tags">
+              <span class="tag go-tag">Go 1.22</span><span class="tag">Gateway</span><span class="tag">Proxy</span>
+            </div>
+            <a href="https://github.com/satyabhan007/ai-threat-defense/tree/main/ch05_golang_gateway" target="_blank" class="chapter-link">View Code →</a>
+          </div>
+          <div class="featured-badge">⭐ Featured</div>
+        </div>
+
+        <!-- Ch 6 -->
+        <div class="chapter-card" data-chapter="6" id="ch-card-6">
+          <div class="chapter-num">06</div>
+          <div class="chapter-icon">🎯</div>
+          <div class="chapter-content">
+            <h3>Adversarial Evaluation Discipline</h3>
+            <p>Evasion attacks via Cyrillic homoglyphs, zero-width spaces, leetspeak &amp; base64 smuggling. ROC-AUC: 1.00 achieved under adversarial conditions.</p>
+            <div class="chapter-tags">
+              <span class="tag">Adversarial</span><span class="tag">ROC-AUC</span><span class="tag">Red Team</span>
+            </div>
+            <a href="https://github.com/satyabhan007/ai-threat-defense/tree/main/ch06_adversarial_evals" target="_blank" class="chapter-link">View Code →</a>
+          </div>
+        </div>
+
+        <!-- Ch 7 -->
+        <div class="chapter-card" data-chapter="7" id="ch-card-7">
+          <div class="chapter-num">07</div>
+          <div class="chapter-icon">☸️</div>
+          <div class="chapter-content">
+            <h3>Containerization &amp; Kubernetes</h3>
+            <p>Multi-stage Docker builds. Distroless Go image &lt;15MB. HPA (3–20 replicas), readiness/liveness probes, security contexts.</p>
+            <div class="chapter-tags">
+              <span class="tag">Docker</span><span class="tag">K8s</span><span class="tag">HPA</span>
+            </div>
+            <a href="https://github.com/satyabhan007/ai-threat-defense/tree/main/ch07_deploy_k8s" target="_blank" class="chapter-link">View Code →</a>
+          </div>
+        </div>
+
+        <!-- Ch 8 -->
+        <div class="chapter-card" data-chapter="8" id="ch-card-8">
+          <div class="chapter-num">08</div>
+          <div class="chapter-icon">🤖</div>
+          <div class="chapter-content">
+            <h3>AI-First Engineering Playbook</h3>
+            <p>Agentic red-teamer with TypeSafe Jev. AST code auditor for secrets &amp; ReDoS. Claude Code &amp; Antigravity IDE as force multipliers.</p>
+            <div class="chapter-tags">
+              <span class="tag">Claude Code</span><span class="tag">Agentic</span><span class="tag">AST</span>
+            </div>
+            <a href="https://github.com/satyabhan007/ai-threat-defense/tree/main/ch08_ai_first_engineering" target="_blank" class="chapter-link">View Code →</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── ARCHITECTURE SECTION ─── -->
+  <section id="architecture" class="section architecture-section">
+    <div class="section-inner">
+      <div class="section-header">
+        <span class="section-tag">SYSTEM DESIGN</span>
+        <h2 class="section-title">Architecture</h2>
+        <p class="section-subtitle">A production inline gateway pattern — Go handles policy enforcement at the edge, ONNX Runtime serves the model sub-15ms.</p>
+      </div>
+
+      <div class="arch-diagram">
+        <div class="arch-node input-node" id="arch-node-input">
+          <div class="arch-node-icon">📨</div>
+          <div class="arch-node-label">Incoming<br/>LLM Request</div>
+        </div>
+        <div class="arch-arrow"><div class="arch-arrow-line"></div><div class="arch-arrow-head">▶</div></div>
+        <div class="arch-node go-node" id="arch-node-go">
+          <div class="arch-node-icon">🦫</div>
+          <div class="arch-node-label">Go Gateway<br/><span class="node-detail">&lt;1ms policy check</span></div>
+          <div class="node-pulse"></div>
+        </div>
+        <div class="arch-arrow"><div class="arch-arrow-line"></div><div class="arch-arrow-head">▶</div></div>
+        <div class="arch-node onnx-node" id="arch-node-onnx">
+          <div class="arch-node-icon">⚡</div>
+          <div class="arch-node-label">ONNX Runtime<br/><span class="node-detail">INT8, P95 0.071ms</span></div>
+          <div class="node-pulse"></div>
+        </div>
+        <div class="arch-arrow"><div class="arch-arrow-line"></div><div class="arch-arrow-head">▶</div></div>
+        <div class="arch-node policy-node" id="arch-node-policy">
+          <div class="arch-node-icon">🛡️</div>
+          <div class="arch-node-label">Policy Decision<br/><span class="node-detail">Allow / Block / Quarantine</span></div>
+        </div>
+      </div>
+
+      <div class="tech-stack">
+        <div class="stack-column">
+          <h4 class="stack-title">Model Layer</h4>
+          <div class="stack-items">
+            <div class="stack-item"><span class="stack-icon">🔥</span> PyTorch 2.x</div>
+            <div class="stack-item"><span class="stack-icon">🤗</span> HuggingFace Transformers</div>
+            <div class="stack-item"><span class="stack-icon">⚡</span> ONNX Runtime</div>
+            <div class="stack-item"><span class="stack-icon">📦</span> scikit-learn</div>
+          </div>
+        </div>
+        <div class="stack-column">
+          <h4 class="stack-title">Gateway Layer</h4>
+          <div class="stack-items">
+            <div class="stack-item"><span class="stack-icon">🦫</span> Go 1.22+</div>
+            <div class="stack-item"><span class="stack-icon">🌐</span> net/http reverse proxy</div>
+            <div class="stack-item"><span class="stack-icon">🔐</span> Policy Engine</div>
+            <div class="stack-item"><span class="stack-icon">🏎️</span> Race-free concurrency</div>
+          </div>
+        </div>
+        <div class="stack-column">
+          <h4 class="stack-title">Infra Layer</h4>
+          <div class="stack-items">
+            <div class="stack-item"><span class="stack-icon">🐳</span> Docker multi-stage</div>
+            <div class="stack-item"><span class="stack-icon">☸️</span> Kubernetes + HPA</div>
+            <div class="stack-item"><span class="stack-icon">🏔️</span> Distroless (&lt;15MB)</div>
+            <div class="stack-item"><span class="stack-icon">⚙️</span> GitHub Actions CI</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── RESULTS SECTION ─── -->
+  <section id="results" class="section results-section">
+    <div class="section-inner">
+      <div class="section-header">
+        <span class="section-tag">BENCHMARKS</span>
+        <h2 class="section-title">Validation Results</h2>
+        <p class="section-subtitle">All tests verified with real numbers — no mocked benchmarks.</p>
+      </div>
+
+      <div class="results-grid">
+        <div class="result-card" id="res-1">
+          <div class="result-metric">
+            <span class="metric-value">0.26<span class="metric-unit">ms</span></span>
+            <span class="metric-label">Baseline Inference</span>
+          </div>
+          <div class="result-bar"><div class="result-bar-fill" style="width:5%"></div></div>
+          <p class="result-desc">Ultra-fast n-gram classifier, zero external dependencies</p>
+        </div>
+
+        <div class="result-card" id="res-2">
+          <div class="result-metric">
+            <span class="metric-value">32<span class="metric-unit">%</span></span>
+            <span class="metric-label">Parameter Reduction</span>
+          </div>
+          <div class="result-bar"><div class="result-bar-fill" style="width:32%"></div></div>
+          <p class="result-desc">LoRA PEFT adapter — rank decomposition with frozen base weights</p>
+        </div>
+
+        <div class="result-card highlight-card" id="res-3">
+          <div class="result-metric">
+            <span class="metric-value">1.00<span class="metric-unit">AUC</span></span>
+            <span class="metric-label">ROC-AUC Score</span>
+          </div>
+          <div class="result-bar"><div class="result-bar-fill" style="width:100%"></div></div>
+          <p class="result-desc">Perfect adversarial robustness — homoglyphs, zero-width chars, base64</p>
+        </div>
+
+        <div class="result-card" id="res-4">
+          <div class="result-metric">
+            <span class="metric-value">0.071<span class="metric-unit">ms P95</span></span>
+            <span class="metric-label">ONNX Latency</span>
+          </div>
+          <div class="result-bar"><div class="result-bar-fill" style="width:1%"></div></div>
+          <p class="result-desc">INT8-quantized ONNX Runtime serving, 4× memory reduction</p>
+        </div>
+
+        <div class="result-card" id="res-5">
+          <div class="result-metric">
+            <span class="metric-value">6<span class="metric-unit">/6</span></span>
+            <span class="metric-label">Go Tests Pass</span>
+          </div>
+          <div class="result-bar"><div class="result-bar-fill" style="width:100%"></div></div>
+          <p class="result-desc">Race-detector enabled — concurrent gateway fully race-free</p>
+        </div>
+
+        <div class="result-card" id="res-6">
+          <div class="result-metric">
+            <span class="metric-value">8<span class="metric-unit">/8</span></span>
+            <span class="metric-label">All Checks Pass</span>
+          </div>
+          <div class="result-bar"><div class="result-bar-fill" style="width:100%"></div></div>
+          <p class="result-desc">Full curriculum verification harness — 21.68ms total runtime</p>
+        </div>
+      </div>
+
+      <div class="cta-block">
+        <h3>Ready to build production AI defenses?</h3>
+        <p>Fork the repo, run the tests, and adapt every module to your threat model.</p>
+        <a href="https://github.com/satyabhan007/ai-threat-defense" target="_blank" class="btn-primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+          Fork on GitHub
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── JEV ANALYSIS SECTION ─── -->
+  <section id="jev-analysis" class="section jev-section">
+    <div class="section-inner">
+      <div class="section-header">
+        <span class="section-tag">POWERED BY JEV · TYPESAFE AI</span>
+        <h2 class="section-title">Chapter Relevance Analysis</h2>
+        <p class="section-subtitle">
+          TypeSafe's Jev model scores each chapter using <strong>Score</strong> + <strong>Noul</strong>
+          primitives — rating topic relevance, production-readiness, and resume impact for your target engineering role.
+        </p>
+      </div>
+
+      <!-- API Key Gate -->
+      <div id="jev-gate" class="jev-gate">
+        <div class="jev-gate-icon">🤖</div>
+        <h3>Enter your TypeSafe API key to run Jev analysis</h3>
+        <p>
+          Jev will evaluate all 8 chapters in parallel against the selected engineering topic —
+          returning calibrated relevance scores, probability distributions, and industry-fit judgments.
+        </p>
+        <div class="jev-key-form">
+          <input
+            id="jev-key-input"
+            type="password"
+            class="jev-key-input"
+            placeholder="ts-live-xxxxxxxxxxxxxxxx"
+            autocomplete="off"
+          />
+          <button id="jev-run-btn" class="btn-jev">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+            Run Analysis
+          </button>
+        </div>
+        <p class="jev-hint">
+          Get a free key at <a href="https://typesafe.ai" target="_blank">typesafe.ai</a> ·
+          Your key is stored locally only · Never sent to our servers
+        </p>
+      </div>
+
+      <!-- Analysis Panel (shown after key entered) -->
+      <div id="jev-panel" class="hidden">
+        <!-- Header with topic selector -->
+        <div class="jev-header">
+          <div class="jev-brand">
+            <div class="jev-logo-badge">⚡</div>
+            <div class="jev-brand-text">
+              <h3>Jev · System One Analysis</h3>
+              <p>Calibrated judgments · Score + Noul primitives · Parallel fan-out</p>
+            </div>
+          </div>
+          <div class="jev-controls">
+            <select id="jev-topic-select" class="jev-topic-select" aria-label="Select engineering topic">
+              <!-- Populated by JS -->
+            </select>
+            <button id="jev-rerun-btn" class="btn-jev">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.87"/>
+              </svg>
+              Re-analyse
+            </button>
+          </div>
+        </div>
+
+        <!-- Loading indicator -->
+        <div id="jev-loading" class="jev-loading hidden">
+          <div class="jev-spinner"></div>
+          <p class="jev-loading-text">
+            Asking Jev to score 8 chapters for<br/>
+            <strong id="jev-loading-topic">ML Security & Threat Detection</strong>
+          </p>
+        </div>
+
+        <!-- Score cards grid -->
+        <div id="jev-results">
+          <div id="jev-scores-grid" class="jev-scores-grid">
+            <!-- Cards rendered by JS -->
+          </div>
+
+          <!-- Overall summary -->
+          <div id="jev-summary" class="jev-summary hidden">
+            <div class="jev-summary-inner">
+              <div class="jev-summary-score">
+                <span id="jev-summary-num" class="jev-summary-num">—</span>
+                <span class="jev-summary-sub">Composite<br/>Match Score</span>
+              </div>
+              <div class="jev-summary-divider"></div>
+              <div class="jev-summary-text">
+                <h4>Jev Verdict</h4>
+                <p id="jev-summary-verdict">Analyzing…</p>
+                <p id="jev-summary-best" style="margin-top:8px;font-size:0.8rem;color:var(--accent-violet)"></p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TypeSafe attribution -->
+        <p style="text-align:center;font-size:0.72rem;color:var(--text-muted);margin-top:24px">
+          Scores computed by <a href="https://typesafe.ai" target="_blank" style="color:var(--accent-violet)">TypeSafe Jev</a>
+          (jev-latest) · Score primitive (0–3 scale, 4 levels) + Noul (yes/no probability) ·
+          Composite = 60% relevance + 40% production-readiness
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-logo">
+        <span>🛡️</span> AI Threat Defense
+      </div>
+      <p class="footer-text">Built by <a href="https://github.com/satyabhan007" target="_blank">Satya Bhan</a> · Production ML Security Engineering Curriculum</p>
+      <div class="footer-links">
+        <a href="https://github.com/satyabhan007/ai-threat-defense" target="_blank">GitHub</a>
+        <a href="https://github.com/satyabhan007/ai-lab" target="_blank">AI Lab</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
