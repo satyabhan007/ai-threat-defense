@@ -198,7 +198,7 @@
 <main>
 
 <!-- ═══ DASHBOARD ═══ -->
-<div class="card full lab-section" id="sec-overview">
+<div class="card full lab-section visible" id="sec-overview">
   <h2>🛡️ What Protects Every AI System You Use</h2>
   <p class="hint">These 10 techniques guard ChatGPT, Claude, GitHub Copilot, and every enterprise LLM. Hover an app to see which lab defends it. All algorithms run live in your browser.</p>
   <div class="app-grid">
@@ -577,8 +577,23 @@ const labObserver=new IntersectionObserver((entries)=>{
       if(labInits[id]){labInits[id]();delete labInits[id];}
     }
   });
-},{threshold:0.05,rootMargin:'0px 0px -30px 0px'});
+},{threshold:0.01,rootMargin:'200px 0px 200px 0px'});
 document.querySelectorAll('.lab-section').forEach(el=>labObserver.observe(el));
+
+function checkVisible(){
+  document.querySelectorAll('.lab-section:not(.visible)').forEach(el=>{
+    const rect=el.getBoundingClientRect();
+    if(rect.top < window.innerHeight + 300){
+      el.classList.add('visible');
+      const id=el.id;
+      if(labInits[id]){labInits[id]();delete labInits[id];}
+    }
+  });
+}
+window.addEventListener('DOMContentLoaded',checkVisible);
+window.addEventListener('load',checkVisible);
+window.addEventListener('scroll',checkVisible,{passive:true});
+setTimeout(checkVisible, 200);
 
 /* ═══════════════════════════════════════════
    NAV TABS
@@ -588,7 +603,12 @@ document.querySelectorAll('.nav-tab').forEach(tab=>{
     document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
     tab.classList.add('active');
     const target=document.getElementById(tab.dataset.target);
-    if(target)target.scrollIntoView({behavior:'smooth',block:'start'});
+    if(target){
+      target.classList.add('visible');
+      const id=target.id;
+      if(labInits[id]){labInits[id]();delete labInits[id];}
+      target.scrollIntoView({behavior:'smooth',block:'start'});
+    }
   };
 });
 
@@ -919,7 +939,7 @@ labInits['lab-onnx']=(function(){
       const ctx=c.getContext('2d'),W=c.width,H=c.height;ctx.clearRect(0,0,W,H);
       const rts=['PyTorch FP32','ONNX CPU','ONNX CUDA','TensorRT INT8'];
       const m=MODELS[document.getElementById('onnxModel').value];
-      const baseFactor=m.flops_M*(+document.getElementById('onnxSeq').value/128)*(+document.getElementById('onnxBatch').value**0.7)*0.013;
+      const baseFactor=m.flops_M*(+document.getElementById('onnxSeq').value/128)*(Math.pow(+document.getElementById('onnxBatch').value, 0.7))*0.013;
       const vals=Object.values(RUNTIMES).map(r=>baseFactor*r.factor);
       const maxV=Math.max(...vals,5);
       const colors=['#f87171','#fb923c','#4ade80','#22d3ee'];
