@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import math
 import random
-from typing import List, Tuple, Optional
+from typing import List, Tuple
 
 
 class PureLoRALayer:
