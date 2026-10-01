@@ -6,6 +6,7 @@ prior to model ingestion or downstream API egress. Uses entropy scoring to verif
 from __future__ import annotations
 
 import enum
+import functools
 import math
 import re
 from typing import Dict, List, Optional
@@ -49,6 +50,7 @@ DLP_PATTERNS: Dict[SensitiveType, re.Pattern] = {
 }
 
 
+@functools.lru_cache(maxsize=1024)
 def shannon_entropy(text: str) -> float:
     """Calculates Shannon entropy of string in bits per character."""
     if not text:
