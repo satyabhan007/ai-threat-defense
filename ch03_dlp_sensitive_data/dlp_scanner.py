@@ -40,7 +40,7 @@ DLP_PATTERNS: Dict[SensitiveType, re.Pattern] = {
     SensitiveType.AWS_CREDENTIAL: re.compile(r"\b(AKIA[0-9A-Z]{16})\b"),
     SensitiveType.API_KEY: re.compile(r"\b(sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36}|xox[baprs]-[0-9a-zA-Z]{10,})\b"),
     SensitiveType.PRIVATE_KEY: re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
-    SensitiveType.PII_EMAIL: re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}\b"),
+    SensitiveType.PII_EMAIL: re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,15}\b"),
     SensitiveType.PII_PHONE: re.compile(r"(?:\+?(\d{1,3}))?[-. ]?\(?(\d{3})\)?[-. ]?(\d{3})[-. ]?(\d{4})\b"),
     SensitiveType.PII_AADHAAR: re.compile(r"\b[2-9]{1}[0-9]{3}\s[0-9]{4}\s[0-9]{4}\b"),
     SensitiveType.PII_PAN: re.compile(r"\b[A-Z]{5}[0-9]{4}[A-Z]{1}\b"),

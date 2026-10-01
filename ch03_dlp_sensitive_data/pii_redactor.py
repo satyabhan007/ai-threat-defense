@@ -7,15 +7,21 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-from typing import Dict, Tuple
+import os
+from typing import Dict, Tuple, Optional
 from .dlp_scanner import DLPScanner, SensitiveMatch
 
 
 class PIIRedactor:
     """Performs consistent, reversible or one-way tokenized redaction."""
 
-    def __init__(self, salt: bytes = b"threat-defense-salt-2026"):
-        self.salt = salt
+    def __init__(self, salt: Optional[bytes] = None):
+        if salt is not None:
+            self.salt = salt
+        elif "REDACTOR_SALT" in os.environ:
+            self.salt = os.environ["REDACTOR_SALT"].encode("utf-8")
+        else:
+            self.salt = os.urandom(32)
         self.scanner = DLPScanner()
         self.token_vault: Dict[str, str] = {}  # token -> original value
 

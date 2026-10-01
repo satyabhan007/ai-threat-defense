@@ -1,5 +1,7 @@
 """Unit tests for DLP scanning, entropy calculation, and token redaction."""
+import os
 import unittest
+from unittest.mock import patch
 from .dlp_scanner import DLPScanner, SensitiveType, shannon_entropy
 from .pii_redactor import PIIRedactor
 
@@ -45,6 +47,16 @@ class TestDLPAndRedactor(unittest.TestCase):
 
         restored = self.redactor.restore(redacted)
         self.assertEqual(restored, raw_text)
+
+    def test_default_salt_is_random(self):
+        r1 = PIIRedactor()
+        r2 = PIIRedactor()
+        self.assertNotEqual(r1.salt, r2.salt)
+
+    @patch.dict(os.environ, {"REDACTOR_SALT": "my-secret-env-salt"})
+    def test_env_salt(self):
+        r = PIIRedactor()
+        self.assertEqual(r.salt, b"my-secret-env-salt")
 
 
 if __name__ == "__main__":
