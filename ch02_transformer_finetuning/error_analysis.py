@@ -3,7 +3,6 @@
 Crucial for production security ML to avoid 'over-defensive collapse'
 (blocking legitimate user queries) while maintaining near-zero false negatives.
 """
-from __future__ import annotations
 
 from typing import Dict, List
 
