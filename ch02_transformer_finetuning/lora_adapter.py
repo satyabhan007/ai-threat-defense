@@ -27,23 +27,30 @@ class PureLoRALayer:
         self.scaling = alpha / rank
 
         random.seed(seed)
-        # Frozen base weights W_0 (simulated)
-        self.w0: List[List[float]] = [
-            [(random.random() - 0.5) * 0.1 for _ in range(in_features)]
-            for _ in range(out_features)
+        self.w0: List[List[float]] = self._init_w0()
+        self.lora_a: List[List[float]] = self._init_lora_a()
+        self.lora_b: List[List[float]] = self._init_lora_b()
+
+    def _init_w0(self) -> List[List[float]]:
+        """Frozen base weights W_0 (simulated)"""
+        return [
+            [(random.random() - 0.5) * 0.1 for _ in range(self.in_features)]
+            for _ in range(self.out_features)
         ]
 
-        # LoRA Matrix A ~ N(0, 1/r)
-        std_a = 1.0 / math.sqrt(rank)
-        self.lora_a: List[List[float]] = [
-            [(random.gauss(0, std_a)) for _ in range(in_features)]
-            for _ in range(rank)
+    def _init_lora_a(self) -> List[List[float]]:
+        """LoRA Matrix A ~ N(0, 1/r)"""
+        std_a = 1.0 / math.sqrt(self.rank)
+        return [
+            [(random.gauss(0, std_a)) for _ in range(self.in_features)]
+            for _ in range(self.rank)
         ]
 
-        # LoRA Matrix B = 0 (ensures delta W is initially zero)
-        self.lora_b: List[List[float]] = [
-            [0.0 for _ in range(rank)]
-            for _ in range(out_features)
+    def _init_lora_b(self) -> List[List[float]]:
+        """LoRA Matrix B = 0 (ensures delta W is initially zero)"""
+        return [
+            [0.0 for _ in range(self.rank)]
+            for _ in range(self.out_features)
         ]
 
     def parameter_counts(self) -> Tuple[int, int, float]:
