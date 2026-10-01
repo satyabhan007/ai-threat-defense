@@ -14,36 +14,44 @@ from __future__ import annotations
 import math
 import random
 from typing import List, Tuple, Optional
+from dataclasses import dataclass
 
+@dataclass
+class LoRAConfig:
+    in_features: int
+    out_features: int
+    rank: int = 4
+    alpha: float = 8.0
+    seed: int = 42
 
 class PureLoRALayer:
     """Pure-Python / NumPy compatible LoRA linear adapter."""
 
-    def __init__(self, in_features: int, out_features: int, rank: int = 4, alpha: float = 8.0, seed: int = 42):
-        self.in_features = in_features
-        self.out_features = out_features
-        self.rank = rank
-        self.alpha = alpha
-        self.scaling = alpha / rank
+    def __init__(self, config: LoRAConfig):
+        self.in_features = config.in_features
+        self.out_features = config.out_features
+        self.rank = config.rank
+        self.alpha = config.alpha
+        self.scaling = config.alpha / config.rank
 
-        random.seed(seed)
+        random.seed(config.seed)
         # Frozen base weights W_0 (simulated)
         self.w0: List[List[float]] = [
-            [(random.random() - 0.5) * 0.1 for _ in range(in_features)]
-            for _ in range(out_features)
+            [(random.random() - 0.5) * 0.1 for _ in range(self.in_features)]
+            for _ in range(self.out_features)
         ]
 
         # LoRA Matrix A ~ N(0, 1/r)
-        std_a = 1.0 / math.sqrt(rank)
+        std_a = 1.0 / math.sqrt(self.rank)
         self.lora_a: List[List[float]] = [
-            [(random.gauss(0, std_a)) for _ in range(in_features)]
-            for _ in range(rank)
+            [(random.gauss(0, std_a)) for _ in range(self.in_features)]
+            for _ in range(self.rank)
         ]
 
         # LoRA Matrix B = 0 (ensures delta W is initially zero)
         self.lora_b: List[List[float]] = [
-            [0.0 for _ in range(rank)]
-            for _ in range(out_features)
+            [0.0 for _ in range(self.rank)]
+            for _ in range(self.out_features)
         ]
 
     def parameter_counts(self) -> Tuple[int, int, float]:
