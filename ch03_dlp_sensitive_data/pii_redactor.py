@@ -32,23 +32,24 @@ class PIIRedactor:
         if not matches:
             return text, {}
 
-        redacted_text = ""
+        parts = []
         last_idx = 0
         local_map: Dict[str, str] = {}
 
         for m in matches:
             # Append preceding clean text
-            redacted_text += text[last_idx:m.start]
+            parts.append(text[last_idx:m.start])
             
             # Generate deterministic pseudonym token
             token = self._hash_token(m.raw_value, m.sensitive_type.value.upper())
-            redacted_text += token
+            parts.append(token)
 
             local_map[token] = m.raw_value
             self.token_vault[token] = m.raw_value
             last_idx = m.end
 
-        redacted_text += text[last_idx:]
+        parts.append(text[last_idx:])
+        redacted_text = "".join(parts)
         return redacted_text, local_map
 
     def restore(self, redacted_text: str) -> str:
