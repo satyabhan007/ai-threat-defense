@@ -61,6 +61,18 @@ func TestPolicyEngine(t *testing.T) {
 		t.Fatalf("expected Allow decision, got %+v", decSafe)
 	}
 
+	exactQuarantine := inspector.InspectionResult{IsThreat: true, RiskScore: pe.QuarantineThreshold}
+	decExactQuarantine := pe.Evaluate(exactQuarantine)
+	if decExactQuarantine.Action != policy.ActionQuarantine || decExactQuarantine.ShouldProxy || decExactQuarantine.HTTPStatus != 429 {
+		t.Fatalf("expected Quarantine 429 decision, got %+v", decExactQuarantine)
+	}
+
+	exactBlock := inspector.InspectionResult{IsThreat: true, RiskScore: pe.BlockThreshold}
+	decExactBlock := pe.Evaluate(exactBlock)
+	if decExactBlock.Action != policy.ActionBlock || decExactBlock.ShouldProxy || decExactBlock.HTTPStatus != 403 {
+		t.Fatalf("expected Block 403 decision, got %+v", decExactBlock)
+	}
+
 	threat := inspector.InspectionResult{IsThreat: true, RiskScore: 0.95}
 	decThreat := pe.Evaluate(threat)
 	if decThreat.Action != policy.ActionBlock || decThreat.ShouldProxy || decThreat.HTTPStatus != 403 {
