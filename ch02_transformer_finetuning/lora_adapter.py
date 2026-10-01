@@ -53,24 +53,22 @@ class PureLoRALayer:
         reduction = 100.0 * (1.0 - (trainable / (frozen + trainable)))
         return frozen, trainable, round(reduction, 2)
 
+    def _matvec(self, matrix: List[List[float]], vector: List[float]) -> List[float]:
+        """Helper for matrix-vector multiplication."""
+        return [sum(row[j] * vector[j] for j in range(len(vector))) for row in matrix]
+
     def forward(self, x: List[float]) -> List[float]:
         """Forward pass: W_0 * x + scaling * (B * A * x)."""
         assert len(x) == self.in_features, f"Input size {len(x)} != {self.in_features}"
 
         # 1. Base linear: W_0 * x
-        base_out = [0.0] * self.out_features
-        for i in range(self.out_features):
-            base_out[i] = sum(self.w0[i][j] * x[j] for j in range(self.in_features))
+        base_out = self._matvec(self.w0, x)
 
         # 2. LoRA branch: A * x
-        ax = [0.0] * self.rank
-        for r in range(self.rank):
-            ax[r] = sum(self.lora_a[r][j] * x[j] for j in range(self.in_features))
+        ax = self._matvec(self.lora_a, x)
 
         # 3. LoRA branch: B * (A * x)
-        bax = [0.0] * self.out_features
-        for i in range(self.out_features):
-            bax[i] = sum(self.lora_b[i][r] * ax[r] for r in range(self.rank))
+        bax = self._matvec(self.lora_b, ax)
 
         # 4. Merge: base + scaling * bax
         return [base_out[i] + self.scaling * bax[i] for i in range(self.out_features)]
