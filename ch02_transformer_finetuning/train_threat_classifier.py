@@ -21,16 +21,22 @@ class FineTuningSimulator:
         self.adapter = PureLoRALayer(in_features=d_model, out_features=num_classes, rank=rank)
         self.history: List[Dict[str, float]] = []
 
-    def _text_to_feature_vector(self, text: str) -> List[float]:
-        """Simple deterministic hash projection into embedding space R^d."""
+    def _hash_projection(self, text: str) -> List[float]:
         vec = [0.0] * self.d_model
         words = text.lower().split()
         for i, word in enumerate(words):
             idx = abs(hash(word)) % self.d_model
             vec[idx] += 1.0 / (1.0 + math.log1p(i))
-        # L2 normalize
+        return vec
+
+    def _l2_normalize(self, vec: List[float]) -> List[float]:
         norm = math.sqrt(sum(v * v for v in vec)) or 1.0
         return [v / norm for v in vec]
+
+    def _text_to_feature_vector(self, text: str) -> List[float]:
+        """Simple deterministic hash projection into embedding space R^d."""
+        vec = self._hash_projection(text)
+        return self._l2_normalize(vec)
 
     def _softmax(self, logits: List[float]) -> List[float]:
         max_l = max(logits)
