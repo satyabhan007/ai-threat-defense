@@ -79,16 +79,12 @@ class FineTuningSimulator:
         val_acc = correct / max(len(val_data), 1)
         return val_loss, val_acc
 
-    def run_training(self, epochs: int = 5) -> Dict[str, any]:
-        dataset = ThreatDataset()
-        train_d, val_d, test_d = dataset.split()
-
-        frozen_p, train_p, red_pct = self.adapter.parameter_counts()
-
+    def _execute_training_loop(self, train_data: List[Dict], val_data: List[Dict], epochs: int) -> None:
+        """Executes the main training loop and populates history."""
         for epoch in range(1, epochs + 1):
             t0 = time.perf_counter()
-            tr_loss = self.train_epoch(train_d)
-            val_loss, val_acc = self.evaluate(val_d)
+            tr_loss = self.train_epoch(train_data)
+            val_loss, val_acc = self.evaluate(val_data)
             dt = (time.perf_counter() - t0) * 1000.0
 
             self.history.append({
@@ -99,7 +95,10 @@ class FineTuningSimulator:
                 "duration_ms": round(dt, 2)
             })
 
-        test_loss, test_acc = self.evaluate(test_d)
+    def _build_training_summary(self, test_data: List[Dict], epochs: int) -> Dict[str, any]:
+        """Constructs the final training summary dictionary."""
+        test_loss, test_acc = self.evaluate(test_data)
+        frozen_p, train_p, red_pct = self.adapter.parameter_counts()
 
         return {
             "frozen_parameters": frozen_p,
@@ -110,6 +109,13 @@ class FineTuningSimulator:
             "epochs_completed": epochs,
             "history": self.history
         }
+
+    def run_training(self, epochs: int = 5) -> Dict[str, any]:
+        dataset = ThreatDataset()
+        train_d, val_d, test_d = dataset.split()
+
+        self._execute_training_loop(train_d, val_d, epochs)
+        return self._build_training_summary(test_d, epochs)
 
 
 if __name__ == "__main__":
