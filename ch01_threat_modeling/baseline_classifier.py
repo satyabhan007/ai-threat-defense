@@ -55,6 +55,9 @@ THREAT_SIGNATURES: Dict[ThreatCategory, List[Tuple[re.Pattern, float]]] = {
 }
 
 
+_PUNCTUATION_RE = re.compile(r"[^\w\s]")
+
+
 class FastBaselineThreatClassifier:
     """Ultra-fast regex + n-gram statistical baseline classifier."""
 
@@ -82,7 +85,7 @@ class FastBaselineThreatClassifier:
         }
 
     def _tokenize(self, text: str) -> List[str]:
-        cleaned = re.sub(r"[^\w\s]", " ", text.lower())
+        cleaned = _PUNCTUATION_RE.sub(" ", text.lower())
         return cleaned.split()
 
     def _extract_ngrams(self, tokens: List[str]) -> List[str]:
