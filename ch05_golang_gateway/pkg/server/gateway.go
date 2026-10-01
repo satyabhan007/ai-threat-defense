@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -18,9 +19,10 @@ type Gateway struct {
 	upstreamURL *url.URL
 	proxy       *httputil.ReverseProxy
 	policy      *policy.PolicyEngine
+	AuthToken   string
 }
 
-func NewGateway(upstream string) (*Gateway, error) {
+func NewGateway(upstream string, authToken string) (*Gateway, error) {
 	u, err := url.Parse(upstream)
 	if err != nil {
 		return nil, err
@@ -29,6 +31,7 @@ func NewGateway(upstream string) (*Gateway, error) {
 		upstreamURL: u,
 		proxy:       httputil.NewSingleHostReverseProxy(u),
 		policy:      policy.NewPolicyEngine(),
+		AuthToken:   authToken,
 	}, nil
 }
 
@@ -38,6 +41,17 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status":"healthy","service":"go-threat-gateway"}`))
 		return
+	}
+
+	if g.AuthToken != "" {
+		authHeader := r.Header.Get("Authorization")
+		expectedAuth := "Bearer " + g.AuthToken
+		if subtle.ConstantTimeCompare([]byte(authHeader), []byte(expectedAuth)) != 1 {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte(`{"error":"unauthorized"}`))
+			return
+		}
 	}
 
 	bodyBytes, err := io.ReadAll(r.Body)

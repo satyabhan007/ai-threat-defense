@@ -75,7 +75,7 @@ func TestGateway_ServeHTTP_Block(t *testing.T) {
 	}))
 	defer mockUpstream.Close()
 
-	gw, err := NewGateway(mockUpstream.URL)
+	gw, err := NewGateway(mockUpstream.URL, "")
 	if err != nil {
 		t.Fatalf("NewGateway failed: %v", err)
 	}
@@ -106,13 +106,75 @@ func TestGateway_ServeHTTP_Allow(t *testing.T) {
 	}))
 	defer mockUpstream.Close()
 
-	gw, err := NewGateway(mockUpstream.URL)
+	gw, err := NewGateway(mockUpstream.URL, "")
 	if err != nil {
 		t.Fatalf("NewGateway failed: %v", err)
 	}
 
 	payload := []byte(`{"messages":[{"role":"user","content":"How do goroutines work in Go?"}]}`)
 	req := httptest.NewRequest("POST", "/v1/chat/completions", bytes.NewBuffer(payload))
+	rec := httptest.NewRecorder()
+
+	gw.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected HTTP 200 OK, got %d", rec.Code)
+	}
+	if !bytes.Contains(rec.Body.Bytes(), []byte("benign response")) {
+		t.Fatalf("expected upstream response forwarded, got %s", rec.Body.String())
+	}
+}
+
+func TestGateway_ServeHTTP_Unauthorized(t *testing.T) {
+	mockUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"reply":"benign response"}`))
+	}))
+	defer mockUpstream.Close()
+
+	gw, err := NewGateway(mockUpstream.URL, "secret-token")
+	if err != nil {
+		t.Fatalf("NewGateway failed: %v", err)
+	}
+
+	payload := []byte(`{"messages":[{"role":"user","content":"How do goroutines work in Go?"}]}`)
+	req := httptest.NewRequest("POST", "/v1/chat/completions", bytes.NewBuffer(payload))
+	// Missing Authorization header
+	rec := httptest.NewRecorder()
+
+	gw.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected HTTP 401 Unauthorized, got %d", rec.Code)
+	}
+
+	// Invalid Authorization header
+	reqInvalid := httptest.NewRequest("POST", "/v1/chat/completions", bytes.NewBuffer(payload))
+	reqInvalid.Header.Set("Authorization", "Bearer invalid-token")
+	recInvalid := httptest.NewRecorder()
+
+	gw.ServeHTTP(recInvalid, reqInvalid)
+
+	if recInvalid.Code != http.StatusUnauthorized {
+		t.Fatalf("expected HTTP 401 Unauthorized, got %d", recInvalid.Code)
+	}
+}
+
+func TestGateway_ServeHTTP_Authorized(t *testing.T) {
+	mockUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"reply":"benign response"}`))
+	}))
+	defer mockUpstream.Close()
+
+	gw, err := NewGateway(mockUpstream.URL, "secret-token")
+	if err != nil {
+		t.Fatalf("NewGateway failed: %v", err)
+	}
+
+	payload := []byte(`{"messages":[{"role":"user","content":"How do goroutines work in Go?"}]}`)
+	req := httptest.NewRequest("POST", "/v1/chat/completions", bytes.NewBuffer(payload))
+	req.Header.Set("Authorization", "Bearer secret-token")
 	rec := httptest.NewRecorder()
 
 	gw.ServeHTTP(rec, req)
