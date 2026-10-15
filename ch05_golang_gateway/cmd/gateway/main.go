@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/satyabhan007/ai-threat-defense/ch05_golang_gateway/pkg/server"
 )
@@ -12,9 +13,15 @@ import (
 func main() {
 	port := flag.Int("port", 8080, "Gateway listening port")
 	upstream := flag.String("upstream", "http://localhost:8000", "Upstream LLM or Mock server")
+	authTokenFlag := flag.String("auth-token", "", "Authorization token required for API access")
 	flag.Parse()
 
-	gw, err := server.NewGateway(*upstream)
+	token := *authTokenFlag
+	if token == "" {
+		token = os.Getenv("GATEWAY_AUTH_TOKEN")
+	}
+
+	gw, err := server.NewGateway(*upstream, token)
 	if err != nil {
 		log.Fatalf("Failed to initialize gateway: %v", err)
 	}
