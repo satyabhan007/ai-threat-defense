@@ -38,24 +38,26 @@ class FineTuningSimulator:
         sum_exp = sum(exps)
         return [e / sum_exp for e in exps]
 
+    def _forward_step(self, sample: Dict) -> Tuple[int, List[float], float]:
+        x = self._text_to_feature_vector(sample["text"])
+        target = sample["label"]
+        logits = self.adapter.forward(x)
+        probs = self._softmax(logits)
+        loss = -math.log(max(probs[target], 1e-12))
+        return target, probs, loss
+
+    def _backward_step(self, target: int, probs: List[float], lr: float) -> None:
+        grad_logits = [probs[k] - (1.0 if k == target else 0.0) for k in range(self.num_classes)]
+        for i in range(self.num_classes):
+            for r in range(self.adapter.rank):
+                self.adapter.lora_b[i][r] -= lr * grad_logits[i] * 0.1
+
     def train_epoch(self, train_data: List[Dict], lr: float = 0.05) -> float:
         total_loss = 0.0
         for sample in train_data:
-            x = self._text_to_feature_vector(sample["text"])
-            target = sample["label"]
-            logits = self.adapter.forward(x)
-            probs = self._softmax(logits)
-
-            # Cross entropy loss: -log(p_target)
-            loss = -math.log(max(probs[target], 1e-12))
+            target, probs, loss = self._forward_step(sample)
             total_loss += loss
-
-            # Gradient step on LoRA B (trainable weights)
-            grad_logits = [probs[k] - (1.0 if k == target else 0.0) for k in range(self.num_classes)]
-            for i in range(self.num_classes):
-                for r in range(self.adapter.rank):
-                    # Simple SGD step on B weights
-                    self.adapter.lora_b[i][r] -= lr * grad_logits[i] * 0.1
+            self._backward_step(target, probs, lr)
 
         return total_loss / max(len(train_data), 1)
 
@@ -64,11 +66,7 @@ class FineTuningSimulator:
         total_loss = 0.0
         correct = 0
         for sample in val_data:
-            x = self._text_to_feature_vector(sample["text"])
-            target = sample["label"]
-            logits = self.adapter.forward(x)
-            probs = self._softmax(logits)
-            loss = -math.log(max(probs[target], 1e-12))
+            target, probs, loss = self._forward_step(sample)
             total_loss += loss
 
             pred = 1 if probs[1] > probs[0] else 0
