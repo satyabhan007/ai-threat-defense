@@ -16,24 +16,18 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from ch01_threat_modeling.baseline_classifier import FastBaselineThreatClassifier
 from ch02_transformer_finetuning.dataset_loader import ThreatDataset, BENIGN_SAMPLES, ADVERSARIAL_SAMPLES
 from ch06_adversarial_evals.adversarial_attacks import AdversarialPerturbationGenerator
+from sklearn.metrics import roc_auc_score
 
 
 def calculate_roc_auc(y_true: List[int], y_scores: List[float]) -> float:
-    """Computes Area Under the ROC Curve without external dependencies."""
-    pairs = sorted(zip(y_scores, y_true), key=lambda p: p[0], reverse=True)
+    """Computes Area Under the ROC Curve."""
     positives = sum(y_true)
     negatives = len(y_true) - positives
 
     if positives == 0 or negatives == 0:
         return 1.0
 
-    rank_sum = 0
-    for rank, (_, label) in enumerate(pairs, 1):
-        if label == 1:
-            rank_sum += (len(pairs) - rank + 1)
-
-    auc = (rank_sum - (positives * (positives + 1)) / 2.0) / (positives * negatives)
-    return max(0.0, min(1.0, auc))
+    return float(roc_auc_score(y_true, y_scores))
 
 
 def evaluate_adversarial_robustness() -> Dict[str, any]:
