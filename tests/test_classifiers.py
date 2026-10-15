@@ -6,7 +6,7 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from ch01_threat_modeling.taxonomy import ThreatCategory, SeverityLevel
 from ch01_threat_modeling.baseline_classifier import FastBaselineThreatClassifier
-from ch02_transformer_finetuning.lora_adapter import PureLoRALayer
+from ch02_transformer_finetuning.lora_adapter import PureLoRALayer, LoRAConfig
 from ch02_transformer_finetuning.dataset_loader import ThreatDataset
 
 
@@ -33,7 +33,7 @@ class TestClassifiersAndLoRA(unittest.TestCase):
         self.assertIn("jailbreak", res.primary_category.value)
 
     def test_lora_adapter_math(self):
-        adapter = PureLoRALayer(in_features=16, out_features=2, rank=4, alpha=8.0)
+        adapter = PureLoRALayer(config=LoRAConfig(in_features=16, out_features=2, rank=4, alpha=8.0))
         frozen, trainable, red_pct = adapter.parameter_counts()
         self.assertEqual(frozen, 32)
         self.assertEqual(trainable, (16 * 4) + (4 * 2))  # 64 + 8 = 72

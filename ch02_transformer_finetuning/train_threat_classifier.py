@@ -9,7 +9,7 @@ import math
 import time
 from typing import Dict, List, Tuple
 from .dataset_loader import ThreatDataset
-from .lora_adapter import PureLoRALayer
+from .lora_adapter import PureLoRALayer, LoRAConfig
 
 
 class FineTuningSimulator:
@@ -18,7 +18,7 @@ class FineTuningSimulator:
     def __init__(self, d_model: int = 64, num_classes: int = 2, rank: int = 4):
         self.d_model = d_model
         self.num_classes = num_classes
-        self.adapter = PureLoRALayer(in_features=d_model, out_features=num_classes, rank=rank)
+        self.adapter = PureLoRALayer(config=LoRAConfig(in_features=d_model, out_features=num_classes, rank=rank))
         self.history: List[Dict[str, float]] = []
 
     def _text_to_feature_vector(self, text: str) -> List[float]:
