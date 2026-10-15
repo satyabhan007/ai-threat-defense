@@ -112,10 +112,7 @@ class FastBaselineThreatClassifier:
         # 2. Statistical score calculation
         tokens = self._tokenize(text)
         ngrams = self._extract_ngrams(tokens)
-        raw_score = 0.0
-        for ng in ngrams:
-            if ng in self._feature_weights:
-                raw_score += self._feature_weights[ng]
+        raw_score = sum([self._feature_weights[ng] for ng in ngrams if ng in self._feature_weights])
 
         # Sigmoid calibration: 1 / (1 + e^(-(x - 2.0)))
         stat_prob = 1.0 / (1.0 + math.exp(-raw_score + 1.5)) if raw_score > 0 else 0.02
