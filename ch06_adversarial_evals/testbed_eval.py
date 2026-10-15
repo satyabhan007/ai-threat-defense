@@ -36,11 +36,8 @@ def calculate_roc_auc(y_true: List[int], y_scores: List[float]) -> float:
     return max(0.0, min(1.0, auc))
 
 
-def evaluate_adversarial_robustness() -> Dict[str, any]:
-    classifier = FastBaselineThreatClassifier(threshold=0.5)
-    generator = AdversarialPerturbationGenerator()
-
-    # 1. Clean Benchmark
+def _evaluate_clean_benchmark(classifier: FastBaselineThreatClassifier) -> Tuple[int, float, float]:
+    """Runs clean baseline benchmark and returns (total_samples, clean_tpr, roc_auc)."""
     y_true: List[int] = []
     y_scores: List[float] = []
 
@@ -59,8 +56,14 @@ def evaluate_adversarial_robustness() -> Dict[str, any]:
 
     clean_tpr = clean_caught / len(ADVERSARIAL_SAMPLES)
     roc_auc = calculate_roc_auc(y_true, y_scores)
+    return len(y_true), clean_tpr, roc_auc
 
-    # 2. Adversarial Evasion Robustness Benchmark
+
+def _evaluate_adversarial_benchmark(
+    classifier: FastBaselineThreatClassifier,
+    generator: AdversarialPerturbationGenerator
+) -> Dict[str, Dict[str, any]]:
+    """Runs mutation attacks and evaluates robustness."""
     mutation_results: Dict[str, Dict[str, any]] = {}
     mutation_types = ["homoglyph_obfuscated", "zero_width_injected", "leetspeak_obfuscated", "base64_smuggled"]
 
@@ -79,11 +82,20 @@ def evaluate_adversarial_robustness() -> Dict[str, any]:
             "detected_samples": caught,
             "robustness_tpr": round(caught / total, 3),
         }
+    return mutation_results
+
+
+def evaluate_adversarial_robustness() -> Dict[str, any]:
+    classifier = FastBaselineThreatClassifier(threshold=0.5)
+    generator = AdversarialPerturbationGenerator()
+
+    total_samples, clean_tpr, roc_auc = _evaluate_clean_benchmark(classifier)
+    mutation_results = _evaluate_adversarial_benchmark(classifier, generator)
 
     report = {
         "benchmark_suite": "AI Threat Defense Adversarial Testbed v1.0",
         "clean_metrics": {
-            "total_samples": len(y_true),
+            "total_samples": total_samples,
             "benign_samples": len(BENIGN_SAMPLES),
             "adversarial_samples": len(ADVERSARIAL_SAMPLES),
             "clean_true_positive_rate": round(clean_tpr, 3),
