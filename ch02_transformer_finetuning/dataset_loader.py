@@ -3,7 +3,6 @@
 Provides balanced datasets containing both adversarial attacks (prompt injection, jailbreaks,
 payload smuggling) and benign corporate/technical queries to prevent false positive collapse.
 """
-from __future__ import annotations
 
 import random
 from typing import Dict, List, Tuple
