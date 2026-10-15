@@ -5,11 +5,25 @@ Designed to execute cleanly in standard Python while supporting PyTorch & Huggin
 """
 from __future__ import annotations
 
+import functools
 import math
 import time
 from typing import Dict, List, Tuple
 from .dataset_loader import ThreatDataset
 from .lora_adapter import PureLoRALayer
+
+
+@functools.lru_cache(maxsize=None)
+def _compute_feature_vector(text: str, d_model: int) -> List[float]:
+    """Simple deterministic hash projection into embedding space R^d."""
+    vec = [0.0] * d_model
+    words = text.lower().split()
+    for i, word in enumerate(words):
+        idx = abs(hash(word)) % d_model
+        vec[idx] += 1.0 / (1.0 + math.log1p(i))
+    # L2 normalize
+    norm = math.sqrt(sum(v * v for v in vec)) or 1.0
+    return [v / norm for v in vec]
 
 
 class FineTuningSimulator:
@@ -22,15 +36,7 @@ class FineTuningSimulator:
         self.history: List[Dict[str, float]] = []
 
     def _text_to_feature_vector(self, text: str) -> List[float]:
-        """Simple deterministic hash projection into embedding space R^d."""
-        vec = [0.0] * self.d_model
-        words = text.lower().split()
-        for i, word in enumerate(words):
-            idx = abs(hash(word)) % self.d_model
-            vec[idx] += 1.0 / (1.0 + math.log1p(i))
-        # L2 normalize
-        norm = math.sqrt(sum(v * v for v in vec)) or 1.0
-        return [v / norm for v in vec]
+        return _compute_feature_vector(text, self.d_model)
 
     def _softmax(self, logits: List[float]) -> List[float]:
         max_l = max(logits)
