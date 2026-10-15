@@ -9,8 +9,6 @@ where:
     r   = rank (e.g. 4, 8, 16)
     alpha = scaling factor
 """
-from __future__ import annotations
-
 import math
 import random
 from typing import List, Tuple, Optional
