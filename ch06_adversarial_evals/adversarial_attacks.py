@@ -43,36 +43,36 @@ class AdversarialPerturbationGenerator:
     @staticmethod
     def apply_homoglyphs(text: str, rate: float = 0.3) -> str:
         """Substitutes Latin characters with visually identical Cyrillic homoglyphs."""
-        chars = []
-        for c in text:
-            lower = c.lower()
-            if lower in HOMOGLYPH_MAP and random.random() < rate:
-                chars.append(HOMOGLYPH_MAP[lower])
-            else:
-                chars.append(c)
-        return "".join(chars)
+        return "".join(
+            [
+                HOMOGLYPH_MAP[lower]
+                if (lower := c.lower()) in HOMOGLYPH_MAP and random.random() < rate
+                else c
+                for c in text
+            ]
+        )
 
     @staticmethod
     def insert_zero_width_spaces(text: str, rate: float = 0.2) -> str:
         """Injects zero-width non-joiner characters (\u200c) inside tokens."""
-        chars = []
-        for c in text:
-            chars.append(c)
-            if c.isalpha() and random.random() < rate:
-                chars.append("\u200c")
-        return "".join(chars)
+        return "".join(
+            [
+                c + "\u200c" if c.isalpha() and random.random() < rate else c
+                for c in text
+            ]
+        )
 
     @staticmethod
     def apply_leetspeak(text: str, rate: float = 0.4) -> str:
         """Applies l33t speak character substitution."""
-        chars = []
-        for c in text:
-            lower = c.lower()
-            if lower in LEET_MAP and random.random() < rate:
-                chars.append(LEET_MAP[lower])
-            else:
-                chars.append(c)
-        return "".join(chars)
+        return "".join(
+            [
+                LEET_MAP[lower]
+                if (lower := c.lower()) in LEET_MAP and random.random() < rate
+                else c
+                for c in text
+            ]
+        )
 
     @staticmethod
     def wrap_base64_smuggling(payload: str) -> str:
