@@ -3,7 +3,6 @@
 Implements model training, cross-entropy loss tracking, validation checks, and early stopping.
 Designed to execute cleanly in standard Python while supporting PyTorch & HuggingFace Trainer.
 """
-from __future__ import annotations
 
 import math
 import time
