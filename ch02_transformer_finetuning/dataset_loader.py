@@ -70,13 +70,9 @@ class ThreatDataset:
     def split(self, train_ratio: float = 0.7, val_ratio: float = 0.15) -> Tuple[List[Dict], List[Dict], List[Dict]]:
         """Stratified split into train, validation, and test subsets."""
         n = len(self.data)
-        n_train = int(n * train_ratio)
-        n_val = int(n * val_ratio)
-
-        train_data = self.data[:n_train]
-        val_data = self.data[n_train:n_train + n_val]
-        test_data = self.data[n_train + n_val:]
-        return train_data, val_data, test_data
+        train_end = int(n * train_ratio)
+        val_end = train_end + int(n * val_ratio)
+        return self.data[:train_end], self.data[train_end:val_end], self.data[val_end:]
 
     @staticmethod
     def augment_text(text: str) -> str:
