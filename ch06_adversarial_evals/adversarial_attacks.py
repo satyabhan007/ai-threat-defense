@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import base64
 import random
-from typing import Callable, Dict, List
+from typing import Callable, Dict
 
 
 HOMOGLYPH_MAP: Dict[str, str] = {
