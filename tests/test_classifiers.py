@@ -52,6 +52,28 @@ class TestClassifiersAndLoRA(unittest.TestCase):
         self.assertGreater(len(te), 0)
         self.assertEqual(len(tr) + len(val) + len(te), len(ds.data))
 
+    def test_augment_text(self):
+        import unittest.mock as mock
+
+        test_str = "hello world"
+
+        with mock.patch("random.choice") as mock_choice:
+            # Test double spacing mutation (index 0)
+            mock_choice.side_effect = lambda mutations: mutations[0]
+            self.assertEqual(ThreatDataset.augment_text(test_str), "hello  world")
+
+            # Test homoglyph substitution mutation (index 1)
+            mock_choice.side_effect = lambda mutations: mutations[1]
+            self.assertEqual(ThreatDataset.augment_text(test_str), "hëllo world")
+
+            # Test prefix mutation (index 2)
+            mock_choice.side_effect = lambda mutations: mutations[2]
+            self.assertEqual(ThreatDataset.augment_text(test_str), "/* Note: disregard */ hello world")
+
+            # Test uppercase mutation (index 3)
+            mock_choice.side_effect = lambda mutations: mutations[3]
+            self.assertEqual(ThreatDataset.augment_text(test_str), "HELLO WORLD")
+
 
 if __name__ == "__main__":
     unittest.main()
