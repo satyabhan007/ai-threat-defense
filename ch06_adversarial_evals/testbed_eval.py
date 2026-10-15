@@ -4,17 +4,15 @@ Measures classification accuracy, Area Under ROC Curve (ROC-AUC), False Positive
 at 99% True Positive Rate (FPR@99%TPR), and evasion resistance across mutation attacks.
 Outputs structured JSON evidence for automated CI verification.
 """
-from __future__ import annotations
 
 import json
-import math
 import os
 import sys
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from ch01_threat_modeling.baseline_classifier import FastBaselineThreatClassifier
-from ch02_transformer_finetuning.dataset_loader import ThreatDataset, BENIGN_SAMPLES, ADVERSARIAL_SAMPLES
+from ch02_transformer_finetuning.dataset_loader import BENIGN_SAMPLES, ADVERSARIAL_SAMPLES
 from ch06_adversarial_evals.adversarial_attacks import AdversarialPerturbationGenerator
 
 
