@@ -7,11 +7,10 @@ Implements evasion techniques observed in wild jailbreak attacks:
 4. Base64 payload smuggling
 5. Suffix optimization / adversarial noise
 """
-from __future__ import annotations
 
 import base64
 import random
-from typing import Callable, Dict, List
+from typing import Dict
 
 
 HOMOGLYPH_MAP: Dict[str, str] = {
