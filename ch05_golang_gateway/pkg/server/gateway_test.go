@@ -28,6 +28,12 @@ func TestExtractPrompt(t *testing.T) {
 	if p != "Tell me a joke." {
 		t.Fatalf("expected 'Tell me a joke.', got '%s'", p)
 	}
+
+	malformedJSON := []byte(`{"model": "gpt-4", "messages": [ {"role": `)
+	malformedP := inspector.ExtractPrompt(malformedJSON)
+	if malformedP != string(malformedJSON) {
+		t.Fatalf("expected malformed JSON to return the raw string, got '%s'", malformedP)
+	}
 }
 
 func TestFastScan_Benign(t *testing.T) {
